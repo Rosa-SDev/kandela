@@ -1,0 +1,14 @@
+# Node / Angular / Vite
+node_modules/
+dist/
+.angular/
+coverage/
+# Java
+target/
+# IDE y sistema
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
