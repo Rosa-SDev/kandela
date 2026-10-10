@@ -2,6 +2,7 @@ package com.restaurante.salon.controller;
 
 import com.restaurante.salon.dto.AgregarPlatilloDTO;
 import com.restaurante.salon.dto.CambiarEstadoPedidoDTO;
+import com.restaurante.salon.dto.CambiarNotaPedidoDTO;
 import com.restaurante.salon.dto.CrearPedidoDTO;
 import com.restaurante.salon.dto.PedidoDTO;
 import com.restaurante.salon.model.EstadoPedido;
@@ -55,6 +56,13 @@ public class PedidoController {
     @GetMapping("/{id}")
     public PedidoDTO buscar(@PathVariable Long id) {
         return PedidoDTO.de(servicio.buscarPorId(id));
+    }
+
+    /** 200 con el pedido y su nota ya cambiada. */
+    @PatchMapping("/{id}")
+    public PedidoDTO cambiarNota(@PathVariable Long id,
+                                 @Valid @RequestBody CambiarNotaPedidoDTO datos) {
+        return PedidoDTO.de(servicio.cambiarNota(id, datos.observaciones()));
     }
 
     /** 200 con el pedido actualizado tras agregar una línea de platillo. */

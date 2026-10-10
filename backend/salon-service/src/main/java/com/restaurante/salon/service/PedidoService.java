@@ -62,6 +62,24 @@ public class PedidoService {
     }
 
     /**
+     * Cambia la nota del pedido.
+     *
+     * Solo se permite mientras el pedido sigue abierto: en cuanto sale hacia
+     * la cocina, lo que diga la nota ya está en manos de quien cocina.
+     */
+    @Transactional
+    public Pedido cambiarNota(Long id, String observaciones) {
+        Pedido pedido = buscarPorId(id);
+
+        if (pedido.getEstado() != EstadoPedido.ABIERTO) {
+            throw new ConflictoException("Solo se puede cambiar la nota de un pedido abierto.");
+        }
+
+        pedido.setObservaciones(observaciones);
+        return pedidoRepository.save(pedido);
+    }
+
+    /**
      * Agrega una línea de platillo desnormalizada al pedido.
      */
     @Transactional
