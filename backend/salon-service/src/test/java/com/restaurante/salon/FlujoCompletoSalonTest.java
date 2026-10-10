@@ -1,5 +1,7 @@
 package com.restaurante.salon;
 
+import com.restaurante.salon.cliente.CartaClient;
+import com.restaurante.salon.cliente.PlatilloRemoto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
@@ -8,12 +10,16 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import java.math.BigDecimal;
+
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
+import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -21,10 +27,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Prueba de integración del flujo completo del salón según el Paso 9 de TAREAS-CAMILO.md:
+ * Prueba de integración del recorrido completo del salón, de punta a punta:
  * 1. POST /api/mesas → crea una mesa LIBRE (201).
  * 2. POST /api/pedidos → abre pedido sobre esa mesa (201) y la mesa queda OCUPADA.
- * 3. POST /api/pedidos/{id}/platillos dos veces → dos líneas agregadas.
+ * 3. POST /api/pedidos/{id}/platillos dos veces → dos líneas agregadas (201).
+ *
+ * La carta se simula: aquí se comprueba el recorrido del salón, no la llamada
+ * HTTP a otro servicio, que tiene su propia prueba.
  * 4. POST /api/pedidos sobre la misma mesa → 409 Conflict.
  * 5. POST /api/facturas con monto insuficiente → 409 Conflict.
  * 6. POST /api/facturas con monto correcto → 201 Created, pedido PAGADO y mesa vuelve a LIBRE.
@@ -35,14 +44,27 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class FlujoCompletoSalonTest {
 
+    private static final Long ID_HAMBURGUESA = 101L;
+    private static final Long ID_LIMONADA = 102L;
+
     @Autowired
     private WebApplicationContext webApplicationContext;
+
+    @MockitoBean
+    private CartaClient cartaClient;
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         this.mockMvc = MockMvcBuilders.webAppContextSetup(this.webApplicationContext).build();
+
+        given(cartaClient.obtener(ID_HAMBURGUESA)).willReturn(
+                new PlatilloRemoto(ID_HAMBURGUESA, "Hamburguesa artesanal",
+                                   new BigDecimal("25000.00"), true));
+        given(cartaClient.obtener(ID_LIMONADA)).willReturn(
+                new PlatilloRemoto(ID_LIMONADA, "Limonada de coco",
+                                   new BigDecimal("5000.00"), true));
     }
 
     @Test
@@ -87,12 +109,10 @@ class FlujoCompletoSalonTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                    "platilloId": 101,
-                                    "nombre": "Hamburguesa artesanal",
-                                    "precioUnitario": 25000.00
+                                    "platilloId": 101
                                 }
                                 """))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.platillos", hasSize(1)))
                 .andExpect(jsonPath("$.total", equalTo(25000.0)));
 
@@ -101,12 +121,10 @@ class FlujoCompletoSalonTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                    "platilloId": 102,
-                                    "nombre": "Limonada de coco",
-                                    "precioUnitario": 5000.00
+                                    "platilloId": 102
                                 }
                                 """))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.platillos", hasSize(2)))
                 .andExpect(jsonPath("$.total", equalTo(30000.0)));
 

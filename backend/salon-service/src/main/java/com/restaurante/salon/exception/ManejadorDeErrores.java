@@ -33,6 +33,16 @@ public class ManejadorDeErrores {
     }
 
     /**
+     * Otro servicio no respondió. El mensaje explica cuál, para que la
+     * interfaz pueda ofrecer reintentar en vez de mostrar un error seco.
+     */
+    @ExceptionHandler(ServicioNoDisponibleException.class)
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    public Map<String, Object> servicioNoDisponible(ServicioNoDisponibleException excepcion) {
+        return Map.of("error", excepcion.getMessage());
+    }
+
+    /**
      * La lanza @Valid cuando el cuerpo de la petición no cumple las
      * validaciones del DTO. Se devuelven todos los campos que fallaron.
      */

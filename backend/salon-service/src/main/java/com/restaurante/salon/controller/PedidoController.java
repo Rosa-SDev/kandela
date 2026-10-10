@@ -2,6 +2,7 @@ package com.restaurante.salon.controller;
 
 import com.restaurante.salon.dto.AgregarPlatilloDTO;
 import com.restaurante.salon.dto.CambiarEstadoPedidoDTO;
+import com.restaurante.salon.dto.CambiarNotaPedidoDTO;
 import com.restaurante.salon.dto.CrearPedidoDTO;
 import com.restaurante.salon.dto.PedidoDTO;
 import com.restaurante.salon.model.EstadoPedido;
@@ -12,9 +13,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -57,8 +58,16 @@ public class PedidoController {
         return PedidoDTO.de(servicio.buscarPorId(id));
     }
 
-    /** 200 con el pedido actualizado tras agregar una línea de platillo. */
+    /** 200 con el pedido y su nota ya cambiada. */
+    @PatchMapping("/{id}")
+    public PedidoDTO cambiarNota(@PathVariable Long id,
+                                 @Valid @RequestBody CambiarNotaPedidoDTO datos) {
+        return PedidoDTO.de(servicio.cambiarNota(id, datos.observaciones()));
+    }
+
+    /** 201 con el pedido actualizado tras agregar una línea de platillo. */
     @PostMapping("/{id}/platillos")
+    @ResponseStatus(HttpStatus.CREATED)
     public PedidoDTO agregarPlatillo(@PathVariable Long id,
                                      @Valid @RequestBody AgregarPlatilloDTO datos) {
         return PedidoDTO.de(servicio.agregarPlatillo(id, datos));
@@ -72,7 +81,7 @@ public class PedidoController {
     }
 
     /** 200 con el pedido actualizado con su nuevo estado. */
-    @PutMapping("/{id}/estado")
+    @PatchMapping("/{id}/estado")
     public PedidoDTO cambiarEstado(@PathVariable Long id,
                                    @Valid @RequestBody CambiarEstadoPedidoDTO datos) {
         return PedidoDTO.de(servicio.cambiarEstado(id, datos.estado()));
