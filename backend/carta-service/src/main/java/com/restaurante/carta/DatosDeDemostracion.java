@@ -12,13 +12,16 @@ import java.math.BigDecimal;
 import java.util.List;
 
 /**
- * Carga unos platillos de ejemplo al arrancar el servicio.
+ * Carga la carta de demostración de Raíz y Sazón al arrancar el servicio.
  *
  * CommandLineRunner es una interfaz de un solo metodo que Spring ejecuta una
  * vez, justo despues de terminar de arrancar el contexto.
  *
  * La base de datos esta en memoria, asi que sin esto cada arranque empezaria
  * con la carta vacia y habria que crear los platillos a mano antes de probar.
+ *
+ * El orden importa: los id se generan en orden de insercion y salon-service
+ * los referencia en los pedidos de demostracion (Arepa = 1 ... Limonada = 6).
  *
  * Los precios se construyen con new BigDecimal("38000.00"), desde texto: un
  * double no representa exactamente los decimales y arrastraria error.
@@ -38,7 +41,7 @@ public class DatosDeDemostracion implements CommandLineRunner {
      * Solo carga si la tabla esta vacia.
      *
      * Hoy lo esta siempre, porque H2 vive en memoria. La guarda es para el
-     * Avance 2: con MySQL, sin ella cada reinicio duplicaria los cinco.
+     * Avance 2: con MySQL, sin ella cada reinicio duplicaria los seis.
      */
     @Override
     public void run(String... args) {
@@ -47,20 +50,23 @@ public class DatosDeDemostracion implements CommandLineRunner {
         }
 
         repositorio.saveAll(List.of(
-                new Platillo("Bandeja paisa",
-                             "Frijoles, chicharrón, chorizo, arepa y huevo",
-                             "Fuertes", new BigDecimal("38000.00"), true),
-                new Platillo("Ajiaco santafereño",
-                             "Sopa de tres papas con pollo, guascas y alcaparras",
-                             "Sopas", new BigDecimal("28000.00"), true),
                 new Platillo("Arepa de choclo",
-                             "Arepa de maíz tierno con queso costeño",
+                             "Maíz tierno asado con queso campesino",
                              "Entradas", new BigDecimal("9000.00"), true),
+                new Platillo("Ajiaco santafereño",
+                             "Pollo, tres papas, mazorca, alcaparras y crema",
+                             "Sopas", new BigDecimal("28000.00"), true),
+                new Platillo("Bandeja paisa",
+                             "Chicharrón, fríjoles, arroz, huevo y aguacate",
+                             "Fuertes", new BigDecimal("38000.00"), true),
+                new Platillo("Sobrebarriga al horno",
+                             "Hogao criollo, papa chorreada y yuca",
+                             "Fuertes", new BigDecimal("36000.00"), true),
                 new Platillo("Postre de natas",
-                             "Natas de leche con brevas en almíbar",
+                             "Natas en almíbar de panela",
                              "Postres", new BigDecimal("12000.00"), true),
                 new Platillo("Limonada de coco",
-                             "Limón exprimido con leche de coco, servido frío",
+                             "Limón, crema de coco y hielo",
                              "Bebidas", new BigDecimal("11000.00"), false)));
 
         LOG.info("Cargados {} platillos de demostración.", repositorio.count());
