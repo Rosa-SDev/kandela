@@ -16,12 +16,25 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Reglas de negocio de los pedidos del restaurante.
  */
 @Service
 public class PedidoService {
+
+    /**
+     * El paso siguiente de cada estado en el recorrido del pedido.
+     *
+     * Cancelar y pagar no están aquí porque no son pasos del recorrido: se
+     * puede cancelar desde cualquier estado no pagado, y a pagado solo se
+     * llega emitiendo la factura.
+     */
+    private static final Map<EstadoPedido, EstadoPedido> PASO_SIGUIENTE = Map.of(
+            EstadoPedido.ABIERTO, EstadoPedido.EN_COCINA,
+            EstadoPedido.EN_COCINA, EstadoPedido.EN_PREPARACION,
+            EstadoPedido.EN_PREPARACION, EstadoPedido.SERVIDO);
 
     private final PedidoRepository pedidoRepository;
     private final MesaService mesaService;
@@ -132,7 +145,8 @@ public class PedidoService {
     }
 
     /**
-     * Cambia el estado del pedido (EN_PREPARACION, SERVIDO, CANCELADO).
+     * Mueve el pedido al estado siguiente de su recorrido, o lo cancela.
+     *
      * Cancelar libera la mesa.
      */
     @Transactional
@@ -146,6 +160,8 @@ public class PedidoService {
             throw new ConflictoException("No se puede modificar un pedido ya pagado.");
         }
 
+        validarElPaso(pedido.getEstado(), nuevoEstado);
+
         if (nuevoEstado == EstadoPedido.CANCELADO) {
             pedido.cancelar();
         } else {
@@ -153,6 +169,26 @@ public class PedidoService {
         }
 
         return pedidoRepository.save(pedido);
+    }
+
+    /**
+     * Comprueba que el pedido pueda pasar de un estado al otro.
+     *
+     * Sin esto una comanda podría volver atrás, saltarse la cocina o darse por
+     * cobrada sin que exista una factura, y lo que muestra cada pantalla
+     * dejaría de corresponder con lo que de verdad pasó en el salón.
+     */
+    private static void validarElPaso(EstadoPedido actual, EstadoPedido nuevo) {
+        if (nuevo == EstadoPedido.CANCELADO) {
+            return;
+        }
+        if (nuevo == EstadoPedido.PAGADO) {
+            throw new ConflictoException("Un pedido solo pasa a pagado al emitir su factura.");
+        }
+        if (PASO_SIGUIENTE.get(actual) != nuevo) {
+            throw new ConflictoException("No se puede pasar un pedido de " + actual.nombreLegible()
+                    + " a " + nuevo.nombreLegible() + ".");
+        }
     }
 
     /**
