@@ -60,8 +60,8 @@ npm install
 npm run dev
 ```
 
-El script de arranque y Kandela Admin llegan en la F1; mientras tanto, cada servicio se
-levanta con `.\mvnw.cmd spring-boot:run` desde su carpeta.
+El script de arranque y Kandela Admin todavía no están en el repositorio; mientras
+tanto, cada servicio se levanta con `.\mvnw.cmd spring-boot:run` desde su carpeta.
 
 Usuarios de prueba (contraseña de todos: `kandela123`):
 
@@ -89,6 +89,6 @@ Soluciones.
 
 ## Limitaciones conocidas
 
-- El inicio de sesión no usa token; los endpoints del backend quedan abiertos (D7).
+- El inicio de sesión no usa token; los endpoints del backend quedan abiertos.
 - Las bases son H2 en memoria: se reinician al arrancar con los datos de demostración.
 - No hay actualización en tiempo real por WebSocket; Cocina y Caja consultan cada 5 s.
