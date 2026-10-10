@@ -22,7 +22,7 @@ import { SesionService } from '../nucleo/sesion.service';
       }
       
       <div class="adm-cuerpo">
-        @if (rutaActual()?.startsWith('/operacion')) {
+        @if (rutaActual().startsWith('/operacion')) {
           <div class="adm-sub">
             <button type="button" [attr.aria-pressed]="rutaActual() === '/operacion/mesas'" (click)="irA('/operacion/mesas')">Mesas</button>
             <button type="button" [attr.aria-pressed]="rutaActual() === '/operacion/pedidos'" (click)="irA('/operacion/pedidos')">Pedidos</button>
