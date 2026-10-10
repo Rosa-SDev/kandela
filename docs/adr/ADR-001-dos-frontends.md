@@ -79,7 +79,7 @@ Reglas que la acompañan:
 
 - **Se facilita:** trabajar en paralelo sin pisarse, probar cada aplicación por separado, explicar la arquitectura en la sustentación, agregar o cambiar un frontend en el tercer corte.
 - **Se complica:** mantener sincronizada la estructura de los componentes en dos frameworks. Para controlarlo, los nombres de componentes y clases son idénticos en las dos aplicaciones (`Boton`, `f-btn`…).
-- **Hay que revisar:** que Angular CLI y Vite importen sin problemas los archivos de `compartido` (es lo primero que se prueba en F1). Si se necesita un solo inicio de sesión, se puede agregar después un token compartido sin cambiar esta decisión.
+- **Hay que revisar:** que Angular CLI y Vite importen sin problemas los archivos de `compartido` (es lo primero que se prueba al crear las dos aplicaciones). Si se necesita un solo inicio de sesión, se puede agregar después un token compartido sin cambiar esta decisión.
 
 ## Acciones
 
