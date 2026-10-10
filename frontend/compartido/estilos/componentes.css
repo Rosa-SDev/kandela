@@ -1,0 +1,666 @@
+/* CAPA 2 · COMPONENTES BÁSICOS (sin lógica de rol) */
+
+/* Botón */
+.f-btn {
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   gap: 10px;
+   height: var(--ctl);
+   padding: 0 var(--s5);
+   border: 0;
+   border-radius: var(--r);
+   cursor: pointer;
+   white-space: nowrap;
+   background: transparent
+}
+
+.f-btn--ancho {
+   width: 100%
+}
+
+.f-btn--calor {
+   background: var(--ladrillo);
+   color: #fff;
+   font-family: var(--f-voz);
+   font-size: calc(var(--txt) + 4px);
+   letter-spacing: .03em;
+   text-transform: uppercase
+}
+
+.f-btn--calor:hover {
+   background: var(--ladrillo-hover)
+}
+
+.f-btn--tinta {
+   border: 2px solid currentColor;
+   color: var(--texto);
+   font-weight: 700;
+   font-size: var(--txt)
+}
+
+.f-btn--texto {
+   color: var(--texto);
+   font-weight: 700;
+   font-size: var(--txt);
+   text-decoration: underline;
+   text-underline-offset: 4px;
+   text-decoration-thickness: 2px;
+   padding: 0 var(--s2)
+}
+
+.f-btn--baja {
+   border: 2px solid var(--ladrillo-os);
+   color: var(--ladrillo-os);
+   font-weight: 700
+}
+
+.f-btn[disabled] {
+   background: transparent;
+   color: var(--texto-3);
+   border: 2px solid var(--filete);
+   cursor: not-allowed;
+   font-family: var(--f-ui);
+   font-size: var(--txt);
+   text-transform: none;
+   letter-spacing: 0;
+   font-weight: 700
+}
+
+/* Título con paréntesis */
+.f-titulo {
+   margin: 0;
+   font-family: var(--f-voz);
+   font-weight: 400;
+   font-size: var(--titulo);
+   line-height: 1.05;
+   text-transform: uppercase;
+   letter-spacing: .015em;
+   color: var(--texto)
+}
+
+.f-titulo .f-par {
+   font-family: var(--f-ui);
+   font-weight: 500;
+   text-transform: none;
+   letter-spacing: 0;
+   font-size: calc(var(--titulo) * .5);
+   color: var(--texto-3);
+   margin-left: .3em;
+   white-space: nowrap
+}
+
+/* Estado: glifo + palabra */
+.f-estado {
+   display: inline-flex;
+   align-items: baseline;
+   gap: 6px;
+   font-size: 13px;
+   font-weight: 700;
+   letter-spacing: .06em;
+   text-transform: uppercase;
+   color: var(--texto);
+   white-space: nowrap
+}
+
+.f-estado i {
+   font-style: normal;
+   width: 1em;
+   text-align: center
+}
+
+.f-estado--ate {
+   color: var(--aji)
+}
+
+.f-estado--err {
+   color: var(--ladrillo-os)
+}
+
+.f-estado--off {
+   color: var(--texto-3)
+}
+
+[data-superficie="tablero"] .f-estado--ate {
+   color: var(--aji-claro)
+}
+
+/* Cifra en voz */
+.f-cifra {
+   font-family: var(--f-voz);
+   font-weight: 400;
+   letter-spacing: .01em;
+   line-height: 1;
+   font-variant-numeric: tabular-nums
+}
+
+/* Paso a paso − valor + */
+.f-paso {
+   display: inline-grid;
+   grid-template-columns: var(--ctl) calc(var(--ctl) * .9) var(--ctl);
+   height: var(--ctl);
+   border: 2px solid var(--tinta)
+}
+
+.f-paso button {
+   border: 0;
+   background: transparent;
+   font-size: 22px;
+   font-weight: 700;
+   cursor: pointer;
+   color: var(--tinta)
+}
+
+.f-paso button[disabled] {
+   color: var(--linea);
+   cursor: not-allowed
+}
+
+.f-paso output {
+   display: grid;
+   place-items: center;
+   font-family: var(--f-doc);
+   font-weight: 700;
+   font-size: var(--txt);
+   border-inline: 2px solid var(--tinta)
+}
+
+/* Selector segmentado */
+.f-seg {
+   display: grid;
+   grid-auto-flow: column;
+   grid-auto-columns: 1fr;
+   border: 2px solid var(--tinta)
+}
+
+.f-seg button {
+   height: var(--ctl);
+   border: 0;
+   background: transparent;
+   font-weight: 700;
+   font-size: var(--txt);
+   cursor: pointer;
+   color: var(--tinta)
+}
+
+.f-seg button+button {
+   border-left: 2px solid var(--tinta)
+}
+
+.f-seg button[aria-pressed="true"] {
+   background: var(--tinta);
+   color: var(--papel)
+}
+
+/* Filtros como pestañas de texto */
+.f-filtros {
+   display: flex;
+   flex-wrap: wrap;
+   gap: 0 var(--s5)
+}
+
+.f-filtros button {
+   min-height: max(48px, var(--ctl));
+   display: inline-flex;
+   align-items: center;
+   border: 0;
+   background: transparent;
+   padding: 0;
+   font-weight: 500;
+   font-size: var(--txt);
+   color: var(--texto-2);
+   cursor: pointer
+}
+
+.f-filtros button span {
+   padding: 6px 0;
+   border-bottom: 3px solid transparent
+}
+
+.f-filtros button[aria-pressed="true"] {
+   color: var(--texto);
+   font-weight: 700
+}
+
+.f-filtros button[aria-pressed="true"] span {
+   border-bottom-color: var(--texto)
+}
+
+/* Barra de rol: marco vino, pestaña activa de papel */
+.f-nav {
+   flex: none;
+   height: 56px;
+   background: var(--vino);
+   color: var(--papel);
+   display: flex;
+   align-items: flex-end;
+   gap: var(--s5);
+   padding: 0 var(--s5)
+}
+
+.f-nav__logo {
+   align-self: center;
+   font-family: var(--f-voz);
+   font-size: 24px;
+   letter-spacing: .02em;
+   color: var(--logo)
+}
+
+.f-nav__tabs {
+   display: flex;
+   gap: 2px;
+   height: 44px
+}
+
+.f-nav__tabs>* {
+   display: flex;
+   align-items: center;
+   padding: 0 var(--s4);
+   font-family: var(--f-voz);
+   font-size: 17px;
+   letter-spacing: .03em;
+   text-transform: uppercase;
+   color: var(--vino-tenue);
+   white-space: nowrap;
+   border: 0;
+   background: transparent;
+   cursor: pointer
+}
+
+.f-nav__tabs [aria-current="page"] {
+   background: var(--fondo);
+   color: var(--texto)
+}
+
+.f-nav__quien {
+   margin-left: auto;
+   align-self: center;
+   font-size: 14px;
+   color: var(--vino-tenue);
+   white-space: nowrap
+}
+
+.f-nav__quien b {
+   color: var(--papel);
+   font-weight: 500
+}
+
+.f-nav__quien button {
+   border: 0;
+   background: transparent;
+   color: var(--vino-tenue);
+   font: inherit;
+   text-decoration: underline;
+   text-underline-offset: 3px;
+   cursor: pointer;
+   min-height: 44px;
+   padding: 0 0 0 4px
+}
+
+/* Barra inferior (solo móvil) */
+.f-tabbar {
+   display: none;
+   flex: none;
+   height: 64px;
+   background: var(--vino);
+   grid-template-columns: repeat(4, 1fr)
+}
+
+.f-tabbar>* {
+   display: grid;
+   place-items: center;
+   font-family: var(--f-voz);
+   font-size: 15px;
+   text-transform: uppercase;
+   letter-spacing: .03em;
+   color: var(--vino-tenue);
+   border: 0;
+   background: transparent;
+   cursor: pointer
+}
+
+.f-tabbar [aria-current="page"] {
+   background: var(--fondo);
+   color: var(--texto)
+}
+
+/* =====================================================================
+   AMPLIACIÓN · formularios, tablas, drawers, diálogos y avisos
+   (capa 2: mismos tokens; no conocen el rol)
+   ===================================================================== */
+.f-btn--texto-baja {
+   color: var(--ladrillo-os)
+}
+
+.f-campo {
+   display: grid;
+   gap: 6px;
+   align-content: start
+}
+
+.f-campo>label,
+.f-campo__lbl {
+   font-size: 13px;
+   font-weight: 700;
+   color: var(--texto)
+}
+
+.f-campo>label i,
+.f-campo__lbl i {
+   font-style: normal;
+   color: var(--ladrillo-os)
+}
+
+.f-campo input,
+.f-campo select,
+.f-campo textarea {
+   width: 100%;
+   height: var(--ctl);
+   border: 2px solid var(--borde);
+   border-radius: var(--r);
+   background: var(--papel);
+   padding: 0 12px;
+   font: inherit;
+   font-size: var(--txt);
+   color: var(--tinta)
+}
+
+.f-campo textarea {
+   height: auto;
+   min-height: 76px;
+   padding: 8px 12px;
+   resize: vertical
+}
+
+.f-campo .f-seg {
+   background: var(--papel)
+}
+
+.f-campo__ayuda {
+   font-size: 13px;
+   color: var(--texto-3)
+}
+
+.f-campo__error {
+   font-size: 13px;
+   font-weight: 700;
+   color: var(--ladrillo-os)
+}
+
+.f-campo--error input,
+.f-campo--error select,
+.f-campo--error textarea {
+   border-color: var(--ladrillo-os);
+   box-shadow: inset 4px 0 0 var(--ladrillo-os)
+}
+
+.f-campo--error .f-seg {
+   border-color: var(--ladrillo-os)
+}
+
+.f-req {
+   margin: 0;
+   font-size: 13px;
+   color: var(--texto-3)
+}
+
+.f-dos {
+   display: grid;
+   grid-template-columns: 1fr 1fr;
+   gap: var(--s4)
+}
+
+.f-aviso {
+   display: grid;
+   grid-template-columns: auto minmax(0, 1fr) auto;
+   gap: 2px 10px;
+   align-items: start;
+   padding: 10px 12px;
+   border-left: 3px solid var(--tinta);
+   background: var(--papel);
+   color: var(--tinta);
+   font-size: 14px;
+   line-height: 1.4
+}
+
+.f-aviso>i {
+   font-style: normal;
+   font-weight: 700;
+   font-size: 16px;
+   line-height: 1.3
+}
+
+.f-aviso b {
+   display: block;
+   font-weight: 700
+}
+
+.f-aviso>.f-btn {
+   align-self: center
+}
+
+.f-aviso--err {
+   border-left-color: var(--ladrillo-os)
+}
+
+.f-aviso--err>i,
+.f-aviso--err b {
+   color: var(--ladrillo-os)
+}
+
+.f-aviso--ate {
+   border-left-color: var(--aji)
+}
+
+.f-aviso--ate>i,
+.f-aviso--ate b {
+   color: var(--aji)
+}
+
+.f-tabla {
+   width: 100%;
+   border-collapse: collapse;
+   font-size: var(--txt)
+}
+
+.f-tabla th {
+   font-size: 12px;
+   font-weight: 700;
+   letter-spacing: .08em;
+   text-transform: uppercase;
+   color: var(--texto-2);
+   text-align: left;
+   padding: 0 12px 8px;
+   border-bottom: 2px solid var(--tinta);
+   white-space: nowrap
+}
+
+.f-tabla td {
+   height: var(--fila);
+   padding: 0 12px;
+   border-bottom: 1px solid var(--filete);
+   vertical-align: middle
+}
+
+.f-tabla th.n,
+.f-tabla td.n {
+   text-align: right;
+   font-variant-numeric: tabular-nums;
+   white-space: nowrap
+}
+
+.f-tabla td.acc {
+   text-align: right;
+   white-space: nowrap;
+   width: 1%
+}
+
+.f-tabla td.acc .f-btn {
+   --ctl: 36px;
+   padding: 0 8px
+}
+
+.f-tabla td b {
+   font-weight: 700
+}
+
+.f-tabla tr.apagada td {
+   color: var(--texto-3)
+}
+
+.f-tabla tr.apagada td.tachar {
+   text-decoration: line-through
+}
+
+.f-tabla tr.nueva td {
+   background: var(--papel)
+}
+
+.f-tabla tr.nueva td:first-child {
+   box-shadow: inset 3px 0 0 var(--ladrillo)
+}
+
+.f-tabla .vacia {
+   color: var(--texto-3);
+   height: 96px;
+   font-family: var(--f-voz);
+   font-size: 22px;
+   text-transform: uppercase
+}
+
+.f-tabla .vacia span {
+   font-family: var(--f-ui);
+   font-size: 15px;
+   text-transform: none
+}
+
+.f-velo {
+   position: absolute;
+   inset: 0;
+   z-index: 30;
+   background: rgba(58, 26, 34, .38);
+   display: flex;
+   justify-content: flex-end
+}
+
+.f-velo--centro {
+   justify-content: center;
+   align-items: center;
+   padding: var(--s4)
+}
+
+.f-drawer {
+   width: 480px;
+   max-width: 100%;
+   height: 100%;
+   display: flex;
+   flex-direction: column;
+   background: var(--arcilla);
+   color: var(--tinta);
+   --texto: var(--tinta);
+   --texto-2: var(--tinta-2);
+   --texto-3: var(--tinta-3);
+   --filete: var(--linea);
+   --fondo: var(--arcilla)
+}
+
+.f-drawer__cab {
+   flex: none;
+   min-height: 64px;
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   gap: var(--s3);
+   padding: 8px 8px 8px var(--s5);
+   background: var(--tinta);
+   color: var(--papel)
+}
+
+.f-drawer__cab .f-titulo {
+   --titulo: 24px;
+   color: var(--papel)
+}
+
+.f-drawer__cab .f-par {
+   color: var(--tinta-tenue)
+}
+
+.f-cerrar {
+   flex: none;
+   width: 44px;
+   height: 44px;
+   border: 0;
+   background: transparent;
+   color: var(--papel);
+   font-size: 26px;
+   line-height: 1;
+   cursor: pointer
+}
+
+.f-drawer__cuerpo {
+   flex: 1;
+   min-height: 0;
+   overflow: auto;
+   padding: var(--s5);
+   display: grid;
+   gap: var(--s4);
+   align-content: start
+}
+
+.f-drawer__pie {
+   flex: none;
+   display: flex;
+   align-items: center;
+   gap: 12px;
+   padding: var(--s4) var(--s5);
+   border-top: 2px solid var(--tinta)
+}
+
+.f-drawer__pie .der {
+   margin-left: auto;
+   display: flex;
+   gap: 12px;
+   align-items: center
+}
+
+.f-dialogo {
+   width: 440px;
+   max-width: 100%;
+   display: grid;
+   gap: var(--s4);
+   padding: var(--s5);
+   border-top: 6px solid var(--tinta);
+   --txt: 15px;
+   --ctl: 44px
+}
+
+.f-dialogo .f-titulo {
+   --titulo: 26px
+}
+
+.f-dialogo__tipo {
+   font-size: 12px;
+   font-weight: 700;
+   letter-spacing: .08em;
+   text-transform: uppercase;
+   color: var(--tinta-2)
+}
+
+.f-dialogo__tipo--baja {
+   color: var(--ladrillo-os)
+}
+
+.f-dialogo ul {
+   margin: 0;
+   padding-left: 20px;
+   display: grid;
+   gap: 6px;
+   color: var(--tinta-2)
+}
+
+.f-dialogo__pie {
+   display: flex;
+   justify-content: flex-end;
+   gap: 12px;
+   flex-wrap: wrap
+}
