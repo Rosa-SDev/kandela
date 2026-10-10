@@ -25,7 +25,7 @@ export interface UsuarioDTO {
 export interface PlatilloDTO {
   id: number;
   nombre: string;
-  descripcion: string;
+  descripcion: string | null;
   categoria: string;
   precio: number;
   disponible: boolean;
