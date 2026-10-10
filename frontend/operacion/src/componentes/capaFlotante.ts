@@ -22,6 +22,7 @@ export function useCapaFlotante(
     destino?.focus();
 
     function alTeclear(evento: KeyboardEvent) {
+      if (!contenedor || !contenedor.contains(document.activeElement)) return;
       if (evento.key === 'Escape') {
         evento.preventDefault();
         onCerrarRef.current();

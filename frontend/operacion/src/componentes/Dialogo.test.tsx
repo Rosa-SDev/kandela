@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { Dialogo } from './Dialogo';
+import { Drawer } from './Drawer';
 
 describe('Dialogo', () => {
   it('al abrir, el foco cae siempre en Volver', () => {
@@ -33,5 +34,19 @@ describe('Dialogo', () => {
       />,
     );
     expect(screen.queryByText('Eliminar')).not.toBeInTheDocument();
+  });
+
+  it('con un Dialogo abierto sobre un Drawer, Escape cierra solo el Dialogo', () => {
+    const cerrarDrawer = vi.fn();
+    const cerrarDialogo = vi.fn();
+    render(
+      <>
+        <Drawer titulo="Nueva reserva" cuerpo={<input aria-label="Cliente" />} onCerrar={cerrarDrawer} />
+        <Dialogo tipo="Acción irreversible" titulo="¿Cancelar la reserva?" onCerrar={cerrarDialogo} />
+      </>,
+    );
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(cerrarDialogo).toHaveBeenCalledTimes(1);
+    expect(cerrarDrawer).not.toHaveBeenCalled();
   });
 });
