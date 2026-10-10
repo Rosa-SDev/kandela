@@ -1,5 +1,7 @@
 package com.restaurante.salon.service;
 
+import com.restaurante.salon.cliente.CartaClient;
+import com.restaurante.salon.cliente.PlatilloRemoto;
 import com.restaurante.salon.dto.AgregarPlatilloDTO;
 import com.restaurante.salon.dto.CrearPedidoDTO;
 import com.restaurante.salon.exception.ConflictoException;
@@ -23,10 +25,14 @@ public class PedidoService {
 
     private final PedidoRepository pedidoRepository;
     private final MesaService mesaService;
+    private final CartaClient cartaClient;
 
-    public PedidoService(PedidoRepository pedidoRepository, MesaService mesaService) {
+    public PedidoService(PedidoRepository pedidoRepository,
+                         MesaService mesaService,
+                         CartaClient cartaClient) {
         this.pedidoRepository = pedidoRepository;
         this.mesaService = mesaService;
+        this.cartaClient = cartaClient;
     }
 
     /**
@@ -80,7 +86,11 @@ public class PedidoService {
     }
 
     /**
-     * Agrega una línea de platillo desnormalizada al pedido.
+     * Agrega una línea de platillo al pedido.
+     *
+     * El nombre y el precio se le piden a la carta y se guardan como una copia
+     * congelada en la línea: si mañana sube el precio de la bandeja paisa, las
+     * cuentas ya tomadas siguen diciendo lo que el cliente aceptó pagar.
      */
     @Transactional
     public Pedido agregarPlatillo(Long id, AgregarPlatilloDTO dto) {
@@ -90,8 +100,13 @@ public class PedidoService {
             throw new ConflictoException("Solo se pueden agregar platillos a un pedido abierto.");
         }
 
-        // TODO Avance 2: Consultar carta-service para obtener nombre y precio unitario
-        LineaPedido linea = new LineaPedido(dto.platilloId(), dto.nombre(), dto.precioUnitario(), pedido);
+        PlatilloRemoto platillo = cartaClient.obtener(dto.platilloId());
+        if (!platillo.disponible()) {
+            throw new ConflictoException("El platillo " + platillo.nombre() + " está agotado.");
+        }
+
+        LineaPedido linea = new LineaPedido(dto.platilloId(), platillo.nombre(),
+                                            platillo.precio(), pedido);
         pedido.agregarPlatillo(linea);
 
         return pedidoRepository.save(pedido);

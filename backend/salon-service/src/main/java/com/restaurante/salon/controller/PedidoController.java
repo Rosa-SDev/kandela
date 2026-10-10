@@ -65,8 +65,9 @@ public class PedidoController {
         return PedidoDTO.de(servicio.cambiarNota(id, datos.observaciones()));
     }
 
-    /** 200 con el pedido actualizado tras agregar una línea de platillo. */
+    /** 201 con el pedido actualizado tras agregar una línea de platillo. */
     @PostMapping("/{id}/platillos")
+    @ResponseStatus(HttpStatus.CREATED)
     public PedidoDTO agregarPlatillo(@PathVariable Long id,
                                      @Valid @RequestBody AgregarPlatilloDTO datos) {
         return PedidoDTO.de(servicio.agregarPlatillo(id, datos));
