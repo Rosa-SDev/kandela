@@ -104,6 +104,24 @@ class NotaDelPedidoTest {
                 .andExpect(jsonPath("$.error", equalTo("El pedido 9999 no existe.")));
     }
 
+    @Test
+    void unaNotaMasLargaQueLaColumnaSeRechazaIndicandoElCampo() throws Exception {
+        Long pedidoId = abrirPedidoEnMesaNueva(33);
+        String notaDemasiadoLarga = "a".repeat(256);
+
+        mockMvc.perform(patch("/api/pedidos/{id}", pedidoId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "observaciones": "%s"
+                                }
+                                """.formatted(notaDemasiadoLarga)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error", equalTo("La petición tiene campos inválidos")))
+                .andExpect(jsonPath("$.campos.observaciones",
+                                    equalTo("La nota no puede tener más de 255 caracteres.")));
+    }
+
     /** Crea una mesa libre con ese número, abre un pedido en ella y devuelve su id. */
     private Long abrirPedidoEnMesaNueva(int numeroDeMesa) throws Exception {
         MvcResult mesaCreada = mockMvc.perform(post("/api/mesas")
