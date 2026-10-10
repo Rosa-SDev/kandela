@@ -1,37 +1,133 @@
-CAPA 1 · FUNDAMENTOS (idénticos en todo Kandela)
-   ===================================================================== */
-:root{
-  color-scheme:light;
-  --arcilla:#EEE5DB; --papel:#F8F3EC; --tinta:#1E1517; --tinta-2:#5B4A42; --tinta-3:#6E5C52;
-  --linea:#CDBFB2; --borde:#8A7769; --ladrillo:#C4493E; --ladrillo-hover:#B23A2F; --ladrillo-os:#9E3328;
-  --vino:#3A1A22; --aji:#8A5E08; --aji-claro:#E8B54A; --tablero:#171113; --logo:#E0897A;
-  --vino-tenue:#C9AFA8;      /* texto inactivo sobre vino */
-  --tinta-tenue:#B3A296;     /* texto secundario sobre banda de tinta */
-  --tablero-texto-2:#CDBDB5; --tablero-texto-3:#A8978D; --tablero-filete:#3A2E2B;
-  --f-voz:"Anton","Impact","Arial Narrow",sans-serif;
-  --f-ui:"Space Grotesk",ui-sans-serif,system-ui,"Segoe UI",Arial,sans-serif;
-  --f-doc:"Space Mono",ui-monospace,Consolas,monospace;
-  --r:2px;
-  --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:20px;--s6:24px;--s8:32px;
+/* CAPA 1 · FUNDAMENTOS (idénticos en todo Kandela)*/
+
+:root {
+  color-scheme: light;
+  --arcilla: #EEE5DB;
+  --papel: #F8F3EC;
+  --tinta: #1E1517;
+  --tinta-2: #5B4A42;
+  --tinta-3: #6E5C52;
+  --linea: #CDBFB2;
+  --borde: #8A7769;
+  --ladrillo: #C4493E;
+  --ladrillo-hover: #B23A2F;
+  --ladrillo-os: #9E3328;
+  --vino: #3A1A22;
+  --aji: #8A5E08;
+  --aji-claro: #E8B54A;
+  --tablero: #171113;
+  --logo: #E0897A;
+  --vino-tenue: #C9AFA8;
+  /* texto inactivo sobre vino */
+  --tinta-tenue: #B3A296;
+  /* texto secundario sobre banda de tinta */
+  --tablero-texto-2: #CDBDB5;
+  --tablero-texto-3: #A8978D;
+  --tablero-filete: #3A2E2B;
+  --f-voz: "Anton", "Impact", "Arial Narrow", sans-serif;
+  --f-ui: "Space Grotesk", ui-sans-serif, system-ui, "Segoe UI", Arial, sans-serif;
+  --f-doc: "Space Mono", ui-monospace, Consolas, monospace;
+  --r: 2px;
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 20px;
+  --s6: 24px;
+  --s8: 32px;
   /* valores por defecto (densidad normal) */
-  --ctl:44px;--txt:15px;--fila:52px;--titulo:32px;--u:15px;
-  --fondo:var(--arcilla);--texto:var(--tinta);--texto-2:var(--tinta-2);--texto-3:var(--tinta-3);--filete:var(--linea);
+  --ctl: 44px;
+  --txt: 15px;
+  --fila: 52px;
+  --titulo: 32px;
+  --u: 15px;
+  --fondo: var(--arcilla);
+  --texto: var(--tinta);
+  --texto-2: var(--tinta-2);
+  --texto-3: var(--tinta-3);
+  --filete: var(--linea);
 }
+
 /* Contexto que declara cada interfaz en su raíz: los componentes solo leen variables */
-[data-densidad="compacta"]{--ctl:36px;--txt:14px;--fila:44px;--titulo:28px}
-[data-densidad="tactil"]{--ctl:48px;--txt:16px;--fila:64px;--titulo:32px}
-[data-densidad="pared"]{--ctl:56px;--txt:18px;--fila:64px;--titulo:40px}
-[data-superficie="arcilla"]{--fondo:var(--arcilla);--texto:var(--tinta);--texto-2:var(--tinta-2);--texto-3:var(--tinta-3);--filete:var(--linea)}
-[data-superficie="tablero"]{--fondo:var(--tablero);--texto:var(--papel);--texto-2:var(--tablero-texto-2);--texto-3:var(--tablero-texto-3);--filete:var(--tablero-filete)}
+[data-densidad="compacta"] {
+  --ctl: 36px;
+  --txt: 14px;
+  --fila: 44px;
+  --titulo: 28px
+}
+
+[data-densidad="tactil"] {
+  --ctl: 48px;
+  --txt: 16px;
+  --fila: 64px;
+  --titulo: 32px
+}
+
+[data-densidad="pared"] {
+  --ctl: 56px;
+  --txt: 18px;
+  --fila: 64px;
+  --titulo: 40px
+}
+
+[data-superficie="arcilla"] {
+  --fondo: var(--arcilla);
+  --texto: var(--tinta);
+  --texto-2: var(--tinta-2);
+  --texto-3: var(--tinta-3);
+  --filete: var(--linea)
+}
+
+[data-superficie="tablero"] {
+  --fondo: var(--tablero);
+  --texto: var(--papel);
+  --texto-2: var(--tablero-texto-2);
+  --texto-3: var(--tablero-texto-3);
+  --filete: var(--tablero-filete)
+}
+
 /* Los objetos de papel restablecen la tinta, estén donde estén */
-.papel{background:var(--papel);--texto:var(--tinta);--texto-2:var(--tinta-2);--texto-3:var(--tinta-3);--filete:var(--linea);color:var(--tinta)}
+.papel {
+  background: var(--papel);
+  --texto: var(--tinta);
+  --texto-2: var(--tinta-2);
+  --texto-3: var(--tinta-3);
+  --filete: var(--linea);
+  color: var(--tinta)
+}
 
-*{box-sizing:border-box}
-html,body{height:100%}
-body{margin:0;background:#E2D8CE;color:var(--tinta);font-family:var(--f-ui);font-size:15px;line-height:1.45}
-button{font:inherit;color:inherit}
-:focus-visible{outline:3px solid var(--ladrillo);outline-offset:2px}
-.mono{font-family:var(--f-doc)}
-.num{font-variant-numeric:tabular-nums}
+* {
+  box-sizing: border-box
+}
 
-/* =====================================================================
+html,
+body {
+  height: 100%
+}
+
+body {
+  margin: 0;
+  background: #E2D8CE;
+  color: var(--tinta);
+  font-family: var(--f-ui);
+  font-size: 15px;
+  line-height: 1.45
+}
+
+button {
+  font: inherit;
+  color: inherit
+}
+
+:focus-visible {
+  outline: 3px solid var(--ladrillo);
+  outline-offset: 2px
+}
+
+.mono {
+  font-family: var(--f-doc)
+}
+
+.num {
+  font-variant-numeric: tabular-nums
+}
