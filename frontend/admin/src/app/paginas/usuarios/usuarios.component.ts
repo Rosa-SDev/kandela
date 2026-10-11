@@ -15,6 +15,7 @@ import { TablaComponent } from '../../componentes/tabla.component';
 import { AvisoComponent } from '../../componentes/aviso.component';
 import { BotonComponent } from '../../componentes/boton.component';
 import { DrawerComponent } from '../../componentes/drawer.component';
+import { DialogoComponent } from '../../componentes/dialogo.component';
 import { CampoComponent } from '../../componentes/campo.component';
 import { CampoOpcionesComponent } from '../../componentes/campo-opciones.component';
 
@@ -67,6 +68,7 @@ function correoValido(control: AbstractControl): ValidationErrors | null {
     AvisoComponent,
     BotonComponent,
     DrawerComponent,
+    DialogoComponent,
     CampoComponent,
     CampoOpcionesComponent
   ],
@@ -97,6 +99,7 @@ function correoValido(control: AbstractControl): ValidationErrors | null {
           <td>{{ etiqueta[u.rol] }}</td>
           <td class="acc">
             <app-boton variante="texto" (accion)="editar(u)">Editar</app-boton>
+            <app-boton variante="texto-baja" (accion)="pedirEliminar(u)">Eliminar</app-boton>
           </td>
         </tr>
       }
@@ -134,7 +137,7 @@ function correoValido(control: AbstractControl): ValidationErrors | null {
             <div style="display: grid; gap: var(--s2)">
               <b>Rol</b>
               <span>{{ etiqueta[editando()!.rol] }}</span>
-              <small>El rol se define al crear al usuario.</small>
+              <small>El rol se define al crear el usuario.</small>
             </div>
           } @else {
             <app-campo-opciones
@@ -157,11 +160,33 @@ function correoValido(control: AbstractControl): ValidationErrors | null {
           <small class="f-req">* Obligatorio</small>
         </form>
 
+        @if (editando()) {
+          <app-boton pie-izq variante="baja" (accion)="pedirEliminar(editando()!)">
+            Eliminar
+          </app-boton>
+        }
         <app-boton pie-der variante="texto" (accion)="cerrar()">Cancelar</app-boton>
         <app-boton pie-der variante="calor" [disabled]="guardando()" (accion)="guardar()">
           {{ editando() ? 'Guardar cambios' : 'Crear usuario' }}
         </app-boton>
       </app-drawer>
+    }
+
+    @if (porEliminar()) {
+      <app-dialogo
+        [titulo]="'¿Eliminar a ' + porEliminar()!.nombre + '?'"
+        tipo="! Acción irreversible"
+        [esDestructivo]="true"
+        (cerrar)="cancelarEliminar()">
+        <ul>
+          <li>Ya no podrá iniciar sesión en Kandela.</li>
+          <li>Los pedidos y reservas que atendió conservan su registro.</li>
+        </ul>
+        <app-boton pie variante="tinta" (accion)="cancelarEliminar()">Volver</app-boton>
+        <app-boton pie variante="calor" [disabled]="eliminando()" (accion)="confirmarEliminar()">
+          Eliminar usuario
+        </app-boton>
+      </app-dialogo>
     }
   `
 })
@@ -181,6 +206,9 @@ export class UsuariosComponent implements OnInit {
   errorCorreoSrv = signal<string | null>(null);
   exito = signal<string | null>(null);
   resaltadoId = signal<number | null>(null);
+
+  porEliminar = signal<UsuarioDTO | null>(null);
+  eliminando = signal(false);
 
   readonly etiqueta: Record<Rol, string> = {
     ADMINISTRADOR: 'Administrador',
@@ -342,6 +370,44 @@ export class UsuariosComponent implements OnInit {
           titulo: err.titulo,
           texto: 'No se guardó nada todavía.'
         });
+      }
+    });
+  }
+
+  pedirEliminar(usuario: UsuarioDTO) {
+    this.error.set(null);
+    this.exito.set(null);
+    this.porEliminar.set(usuario);
+  }
+
+  cancelarEliminar() {
+    this.porEliminar.set(null);
+  }
+
+  confirmarEliminar() {
+    const usuario = this.porEliminar();
+    if (!usuario || this.eliminando()) {
+      return;
+    }
+    this.eliminando.set(true);
+
+    this.api.delete<void>(`/api/usuarios/${usuario.id}`).subscribe({
+      next: () => {
+        this.usuarios.update((lista) => lista.filter((u) => u.id !== usuario.id));
+        this.resaltadoId.set(null);
+        this.exito.set(`Usuario ${usuario.nombre} eliminado.`);
+        this.eliminando.set(false);
+        this.porEliminar.set(null);
+        this.drawerAbierto.set(false);
+      },
+      error: (err) => {
+        this.eliminando.set(false);
+        this.porEliminar.set(null);
+        if (this.drawerAbierto()) {
+          this.resumen.set({ titulo: err.titulo, texto: 'No se eliminó nada.' });
+        } else {
+          this.error.set(err.titulo);
+        }
       }
     });
   }
