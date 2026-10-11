@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -76,7 +77,7 @@ public class PlatilloController {
     }
 
     /** 200 con el platillo ya rebajado, para no obligar a otro GET. */
-    @PutMapping("/{id}/descuento")
+    @PatchMapping("/{id}/descuento")
     public PlatilloDTO aplicarDescuento(@PathVariable Long id,
                                         @Valid @RequestBody DescuentoDTO datos) {
         return PlatilloDTO.de(servicio.aplicarDescuento(id, datos.porcentaje()));
