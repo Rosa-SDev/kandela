@@ -2,7 +2,6 @@ package com.restaurante.salon.cliente;
 
 import com.restaurante.salon.exception.ServicioNoDisponibleException;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
