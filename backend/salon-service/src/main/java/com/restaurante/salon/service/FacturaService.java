@@ -21,10 +21,14 @@ public class FacturaService {
 
     private final FacturaRepository facturaRepository;
     private final PedidoService pedidoService;
+    private final com.restaurante.salon.cliente.UsuariosClient usuariosClient;
 
-    public FacturaService(FacturaRepository facturaRepository, PedidoService pedidoService) {
+    public FacturaService(FacturaRepository facturaRepository, 
+                          PedidoService pedidoService,
+                          com.restaurante.salon.cliente.UsuariosClient usuariosClient) {
         this.facturaRepository = facturaRepository;
         this.pedidoService = pedidoService;
+        this.usuariosClient = usuariosClient;
     }
 
     /**
@@ -38,6 +42,17 @@ public class FacturaService {
      */
     @Transactional
     public Factura emitirFactura(EmitirFacturaDTO dto) {
+        com.restaurante.salon.cliente.UsuarioRemoto cajero = usuariosClient.obtener(dto.cajeroId());
+        if (cajero == null) {
+            throw new NoEncontradoException("El usuario " + dto.cajeroId() + " no existe.");
+        }
+        if (!"CAJERO".equals(cajero.rol())) {
+            throw new ConflictoException(cajero.nombre() + " no es cajero.");
+        }
+        if (!Boolean.TRUE.equals(cajero.activo())) {
+            throw new ConflictoException(cajero.nombre() + " está inactivo.");
+        }
+
         Pedido pedido = pedidoService.buscarPorId(dto.pedidoId());
 
         if (pedido.getEstado() == EstadoPedido.CANCELADO) {
