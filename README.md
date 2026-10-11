@@ -60,9 +60,6 @@ npm install
 npm run dev
 ```
 
-El script de arranque y Kandela Admin todavía no están en el repositorio; mientras
-tanto, cada servicio se levanta con `.\mvnw.cmd spring-boot:run` desde su carpeta.
-
 Usuarios de prueba (contraseña de todos: `kandela123`):
 
 | Rol | Correo | Entra a |
