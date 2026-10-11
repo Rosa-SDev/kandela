@@ -103,7 +103,10 @@ function correoValido(control: AbstractControl): ValidationErrors | null {
     </app-tabla>
 
     @if (drawerAbierto()) {
-      <app-drawer [titulo]="editando() ? 'Editar usuario' : 'Nuevo usuario'" (cerrar)="cerrar()">
+      <app-drawer
+        [titulo]="editando() ? 'Editar usuario' : 'Nuevo usuario'"
+        [par]="editando()?.nombre ?? null"
+        (cerrar)="cerrar()">
         @if (resumen()) {
           <app-aviso tono="err" glifo="!" [titulo]="resumen()!.titulo">
             {{ resumen()!.texto }}
@@ -131,7 +134,7 @@ function correoValido(control: AbstractControl): ValidationErrors | null {
             <div style="display: grid; gap: var(--s2)">
               <b>Rol</b>
               <span>{{ etiqueta[editando()!.rol] }}</span>
-              <small>El rol no se puede cambiar.</small>
+              <small>El rol se define al crear al usuario.</small>
             </div>
           } @else {
             <app-campo-opciones
