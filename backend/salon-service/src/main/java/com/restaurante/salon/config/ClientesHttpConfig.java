@@ -37,6 +37,11 @@ public class ClientesHttpConfig {
         return clienteHacia(urlDeCarta);
     }
 
+    @Bean
+    public RestClient usuariosRestClient(@Value("${servicios.usuarios.url}") String urlDeUsuarios) {
+        return clienteHacia(urlDeUsuarios);
+    }
+
     /** Arma un cliente apuntado a la raíz de otro servicio, con los tiempos de espera ya puestos. */
     private static RestClient clienteHacia(String urlBase) {
         SimpleClientHttpRequestFactory fabrica = new SimpleClientHttpRequestFactory();
