@@ -61,11 +61,20 @@ class FlujoCompletoSalonTest {
     @MockitoBean
     private CartaClient cartaClient;
 
+    @MockitoBean
+    private com.restaurante.salon.cliente.UsuariosClient usuariosClient;
+
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         this.mockMvc = MockMvcBuilders.webAppContextSetup(this.webApplicationContext).build();
+
+        given(usuariosClient.obtener(org.mockito.ArgumentMatchers.anyLong())).willAnswer(inv -> {
+            Long id = inv.getArgument(0);
+            if (id == 5L) return new com.restaurante.salon.cliente.UsuarioRemoto(id, "Cajero Demo", "c@k.com", "CAJERO", true);
+            return new com.restaurante.salon.cliente.UsuarioRemoto(id, "Mesero Demo", "m@k.com", "MESERO", true);
+        });
 
         given(cartaClient.obtener(ID_HAMBURGUESA)).willReturn(
                 new PlatilloRemoto(ID_HAMBURGUESA, "Hamburguesa artesanal",

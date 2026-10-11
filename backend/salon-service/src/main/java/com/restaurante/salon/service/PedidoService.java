@@ -39,13 +39,16 @@ public class PedidoService {
     private final PedidoRepository pedidoRepository;
     private final MesaService mesaService;
     private final CartaClient cartaClient;
+    private final com.restaurante.salon.cliente.UsuariosClient usuariosClient;
 
     public PedidoService(PedidoRepository pedidoRepository,
                          MesaService mesaService,
-                         CartaClient cartaClient) {
+                         CartaClient cartaClient,
+                         com.restaurante.salon.cliente.UsuariosClient usuariosClient) {
         this.pedidoRepository = pedidoRepository;
         this.mesaService = mesaService;
         this.cartaClient = cartaClient;
+        this.usuariosClient = usuariosClient;
     }
 
     /**
@@ -55,6 +58,17 @@ public class PedidoService {
      */
     @Transactional
     public Pedido crear(CrearPedidoDTO dto) {
+        com.restaurante.salon.cliente.UsuarioRemoto mesero = usuariosClient.obtener(dto.meseroId());
+        if (mesero == null) {
+            throw new NoEncontradoException("El usuario " + dto.meseroId() + " no existe.");
+        }
+        if (!"MESERO".equals(mesero.rol())) {
+            throw new ConflictoException(mesero.nombre() + " no es mesero.");
+        }
+        if (!Boolean.TRUE.equals(mesero.activo())) {
+            throw new ConflictoException(mesero.nombre() + " está inactivo.");
+        }
+
         Mesa mesa = mesaService.buscarPorId(dto.mesaId());
 
         if (mesa.getEstado() == EstadoMesa.OCUPADA) {
