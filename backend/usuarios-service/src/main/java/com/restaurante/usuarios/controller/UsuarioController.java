@@ -10,6 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
+import com.restaurante.usuarios.dto.ActualizarUsuarioDTO;
+
 @RestController
 @RequestMapping("/api/usuarios")
 public class UsuarioController {
@@ -36,8 +38,8 @@ public class UsuarioController {
         return servicio.buscarPorId(id);
     }
 
-    @PutMapping("/{id}")
-    public UsuarioDTO actualizar(@PathVariable Long id, @Valid @RequestBody CrearUsuarioDTO dto) {
+        @PutMapping("/{id}")
+    public UsuarioDTO actualizar(@PathVariable Long id, @Valid @RequestBody ActualizarUsuarioDTO dto) {
         return servicio.actualizar(id, dto);
     }
 
