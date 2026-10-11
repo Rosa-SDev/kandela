@@ -5,7 +5,7 @@ import { Component, input, output } from '@angular/core';
   standalone: true,
   template: `
     <button 
-      type="button" 
+      [type]="tipo()" 
       class="f-btn" 
       [class]="'f-btn--' + variante()"
       [class.f-btn--ancho]="ancho()"
@@ -18,6 +18,7 @@ import { Component, input, output } from '@angular/core';
 export class BotonComponent {
   variante = input<'calor' | 'tinta' | 'texto' | 'baja' | 'texto-baja'>('tinta');
   ancho = input<boolean>(false);
+  tipo = input<'button' | 'submit' | 'reset'>('button');
   disabled = input<boolean>(false);
   accion = output<void>();
 }
