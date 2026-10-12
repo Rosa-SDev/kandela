@@ -49,6 +49,9 @@
         <td class="n">{{ fila.consumo }}</td>
         <td class="acc">
           <app-boton variante="texto" (accion)="ver(fila)">Ver</app-boton>
+          @if (esActivo(fila.pedido)) {
+            <app-boton variante="texto-baja" (accion)="pedirCancelar(fila)">Cancelar</app-boton>
+          }
         </td>
       </tr>
     }
@@ -71,6 +74,38 @@
     <app-comanda [pedido]="verPedido()!.pedido"></app-comanda>
     <p class="f-req">Mesero: {{ verPedido()!.mesero }}</p>
 
+    @if (esActivo(verPedido()!.pedido)) {
+      <app-boton pie-izq variante="baja" (accion)="pedirCancelar(verPedido()!)">
+        Cancelar pedido
+      </app-boton>
+    }
     <app-boton pie-der variante="tinta" (accion)="cerrarDrawer()">Cerrar</app-boton>
   </app-drawer>
+}
+
+@if (porCancelar()) {
+  <app-dialogo
+    [titulo]="'¿Cancelar el pedido #' + porCancelar()!.pedido.id + '?'"
+    tipo="Acción irreversible"
+    [esDestructivo]="true"
+    (cerrar)="cancelarElDialogo()">
+    <ul>
+      @for (consecuencia of consecuenciasDeCancelar(porCancelar()!); track consecuencia) {
+        <li>{{ consecuencia }}</li>
+      }
+    </ul>
+
+    @if (errorDelDialogo()) {
+      <app-aviso tono="err" glifo="!" [titulo]="errorDelDialogo()!.titulo">
+        {{ errorDelDialogo()!.texto }}
+      </app-aviso>
+    }
+
+    <app-boton pie variante="tinta" (accion)="cancelarElDialogo()">Volver</app-boton>
+    @if (!errorDelDialogo()) {
+      <app-boton pie variante="calor" [disabled]="cancelando()" (accion)="confirmarCancelar()">
+        Cancelar pedido
+      </app-boton>
+    }
+  </app-dialogo>
 }
