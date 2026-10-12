@@ -1,5 +1,6 @@
 <div class="adm-cab">
   <app-titulo texto="Mesas" [par]="mesas().length + ' en el salón'"></app-titulo>
+  <app-boton variante="calor" (accion)="abrir()">Nueva mesa</app-boton>
 </div>
 
 @if (error()) {
@@ -12,12 +13,16 @@
   </app-aviso>
 }
 
+@if (exito()) {
+  <app-aviso glifo="✓" [titulo]="exito()!"></app-aviso>
+}
+
 <app-tabla
   [columnas]="['Mesa', 'Capacidad', 'Estado', 'Ahora']"
   [vacia]="!cargando() && !error() && filas().length === 0"
   mensajeVacia="SIN MESAS">
   @for (fila of filas(); track fila.mesa.id) {
-    <tr>
+    <tr [class.nueva]="fila.mesa.id === resaltadoId()">
       <td><b>Mesa {{ fila.mesa.numero }}</b></td>
       <td>{{ fila.mesa.capacidad }} personas</td>
       <td>
@@ -30,3 +35,37 @@
     </tr>
   }
 </app-tabla>
+
+@if (drawerAbierto()) {
+  <app-drawer titulo="Nueva mesa" (cerrar)="cerrar()">
+    @if (resumen()) {
+      <app-aviso tono="err" glifo="!" [titulo]="resumen()!.titulo">
+        {{ resumen()!.texto }}
+      </app-aviso>
+    }
+
+    <form [formGroup]="formulario" (ngSubmit)="guardar()" style="display: grid; gap: var(--s4)">
+      <app-campo
+        label="Número de mesa"
+        formControlName="numero"
+        [req]="true"
+        [error]="errorDe('numero')">
+      </app-campo>
+
+      <app-campo
+        label="Capacidad (personas)"
+        formControlName="capacidad"
+        [req]="true"
+        ayuda="El plano del salón dibuja la mesa según su capacidad."
+        [error]="errorDe('capacidad')">
+      </app-campo>
+
+      <small class="f-req">* Obligatorio</small>
+    </form>
+
+    <app-boton pie-der variante="texto" (accion)="cerrar()">Cancelar</app-boton>
+    <app-boton pie-der variante="calor" [disabled]="guardando()" (accion)="guardar()">
+      Crear mesa
+    </app-boton>
+  </app-drawer>
+}

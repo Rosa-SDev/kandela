@@ -1,4 +1,11 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import {
+  AbstractControl,
+  FormBuilder,
+  ReactiveFormsModule,
+  ValidationErrors,
+  Validators
+} from '@angular/forms';
 import { catchError, forkJoin, of } from 'rxjs';
 import { MesaDTO, PedidoDTO, ReservaDTO, UsuarioDTO } from '@compartido/api/tipos';
 import { ApiService } from '../../nucleo/api.service';
@@ -6,6 +13,9 @@ import { TituloComponent } from '../../componentes/titulo.component';
 import { TablaComponent } from '../../componentes/tabla.component';
 import { AvisoComponent } from '../../componentes/aviso.component';
 import { EstadoComponent } from '../../componentes/estado.component';
+import { BotonComponent } from '../../componentes/boton.component';
+import { DrawerComponent } from '../../componentes/drawer.component';
+import { CampoComponent } from '../../componentes/campo.component';
 import { MesasService } from './mesas.service';
 import { ClaveDeMesa, ETIQUETA_MESA, situacionDeMesa } from './estado-de-mesa';
 
@@ -15,6 +25,21 @@ interface FilaDeMesa {
   clave: ClaveDeMesa;
   ahora: string;
   pedidoId: number | null;
+}
+
+/**
+ * Un entero mayor que cero, que es lo único que acepta el salón.
+ *
+ * Se valida aquí además de en el servidor para no gastar una ida y vuelta en
+ * un número negativo, y porque el aviso tiene que aparecer debajo del campo.
+ */
+function enteroPositivo(control: AbstractControl): ValidationErrors | null {
+  const texto = String(control.value ?? '').trim();
+  if (!texto) {
+    return null;
+  }
+  const numero = Number(texto);
+  return Number.isInteger(numero) && numero > 0 ? null : { positivo: true };
 }
 
 /**
@@ -29,12 +54,22 @@ interface FilaDeMesa {
 @Component({
   selector: 'app-mesas',
   standalone: true,
-  imports: [TituloComponent, TablaComponent, AvisoComponent, EstadoComponent],
+  imports: [
+    ReactiveFormsModule,
+    TituloComponent,
+    TablaComponent,
+    AvisoComponent,
+    EstadoComponent,
+    BotonComponent,
+    DrawerComponent,
+    CampoComponent
+  ],
   templateUrl: './mesas.component.html'
 })
 export class MesasComponent implements OnInit {
   private api = inject(ApiService);
   private mesasService = inject(MesasService);
+  private fb = inject(FormBuilder);
 
   mesas = signal<MesaDTO[]>([]);
   pedidos = signal<PedidoDTO[]>([]);
@@ -43,8 +78,31 @@ export class MesasComponent implements OnInit {
 
   cargando = signal(true);
   error = signal<string | null>(null);
+  exito = signal<string | null>(null);
+  resaltadoId = signal<number | null>(null);
+
+  drawerAbierto = signal(false);
+  guardando = signal(false);
+  resumen = signal<{ titulo: string; texto: string } | null>(null);
+  errorNumeroSrv = signal<string | null>(null);
 
   etiqueta = ETIQUETA_MESA;
+
+  formulario = this.fb.nonNullable.group({
+    numero: ['', [Validators.required, enteroPositivo]],
+    capacidad: ['', [Validators.required, enteroPositivo]]
+  });
+
+  private readonly mensajes: Record<string, Record<string, string>> = {
+    numero: {
+      required: 'El número de la mesa es obligatorio.',
+      positivo: 'El número de la mesa debe ser mayor que cero.'
+    },
+    capacidad: {
+      required: 'La capacidad es obligatoria.',
+      positivo: 'La capacidad de la mesa debe ser mayor que cero.'
+    }
+  };
 
   /** Las mesas en el orden en que están numeradas en el salón. */
   filas = computed<FilaDeMesa[]>(() => {
@@ -72,6 +130,75 @@ export class MesasComponent implements OnInit {
 
   reintentar() {
     this.cargar();
+  }
+
+  abrir() {
+    this.formulario.reset({ numero: '', capacidad: '' });
+    this.resumen.set(null);
+    this.errorNumeroSrv.set(null);
+    this.exito.set(null);
+    this.drawerAbierto.set(true);
+  }
+
+  cerrar() {
+    this.drawerAbierto.set(false);
+  }
+
+  /** El mensaje de un campo: primero lo que dijo el servidor, luego lo nuestro. */
+  errorDe(campo: 'numero' | 'capacidad'): string | null {
+    if (campo === 'numero' && this.errorNumeroSrv()) {
+      return this.errorNumeroSrv();
+    }
+    const control = this.formulario.controls[campo];
+    if (!control.touched || !control.invalid) {
+      return null;
+    }
+    const clave = Object.keys(control.errors ?? {})[0];
+    return this.mensajes[campo][clave] ?? null;
+  }
+
+  guardar() {
+    if (this.guardando()) {
+      return;
+    }
+
+    if (this.formulario.invalid) {
+      this.formulario.markAllAsTouched();
+      const n = Object.values(this.formulario.controls).filter((c) => c.invalid).length;
+      this.resumen.set({
+        titulo: `Revise ${n} campo${n === 1 ? '' : 's'}`,
+        texto: 'No se guardó nada todavía.'
+      });
+      return;
+    }
+
+    const valores = this.formulario.getRawValue();
+    const datos = { numero: Number(valores.numero), capacidad: Number(valores.capacidad) };
+
+    this.guardando.set(true);
+    this.resumen.set(null);
+    this.errorNumeroSrv.set(null);
+
+    this.mesasService.crear(datos).subscribe({
+      next: (creada) => {
+        this.mesas.update((lista) => [...lista, creada]);
+        this.exito.set(`Mesa ${creada.numero} creada para ${creada.capacidad} personas.`);
+        this.resaltadoId.set(creada.id);
+        this.guardando.set(false);
+        this.drawerAbierto.set(false);
+      },
+      error: (err) => {
+        this.guardando.set(false);
+        // El único conflicto al crear es que ese número ya esté tomado, así que
+        // además del aviso se marca el campo que hay que cambiar.
+        if (err.status === 409) {
+          this.errorNumeroSrv.set('! Revise este campo.');
+          this.resumen.set({ titulo: err.titulo, texto: 'Elija otro número.' });
+        } else {
+          this.resumen.set({ titulo: err.titulo, texto: 'No se guardó nada todavía.' });
+        }
+      }
+    });
   }
 
   private cargar() {
