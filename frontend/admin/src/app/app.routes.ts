@@ -22,7 +22,8 @@ export const routes: Routes = [
       { path: 'operacion/reservas', component: DummyComponent },
       { path: 'operacion', redirectTo: 'operacion/mesas', pathMatch: 'full' },
       
-      { path: 'carta', component: DummyComponent },
+      { path: 'carta', loadComponent: () => import('./operacion/carta/carta.component').then(m => m.CartaComponent) },
+      { path: 'operacion/carta', redirectTo: 'carta', pathMatch: 'full' },
       { path: 'clientes', component: DummyComponent },
       { path: 'facturas', component: DummyComponent },
       { path: 'usuarios', component: DummyComponent },

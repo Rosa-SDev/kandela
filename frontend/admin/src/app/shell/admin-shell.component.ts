@@ -22,7 +22,7 @@ import { SesionService } from '../nucleo/sesion.service';
       }
       
       <div class="adm-cuerpo">
-        @if (rutaActual().startsWith('/operacion')) {
+        @if (esOperacion()) {
           <div class="adm-sub">
             <button type="button" [attr.aria-pressed]="rutaActual() === '/operacion/mesas'" (click)="irA('/operacion/mesas')">Mesas</button>
             <button type="button" [attr.aria-pressed]="rutaActual() === '/operacion/pedidos'" (click)="irA('/operacion/pedidos')">Pedidos</button>
@@ -47,6 +47,11 @@ export class AdminShellComponent {
   rutaActual = computed(() => {
     this.navEnd(); // trigger update on navigation
     return this.router.url;
+  });
+
+  esOperacion = computed(() => {
+    const url = this.rutaActual();
+    return url.startsWith('/operacion') && !url.startsWith('/operacion/carta');
   });
 
   tabs = [
