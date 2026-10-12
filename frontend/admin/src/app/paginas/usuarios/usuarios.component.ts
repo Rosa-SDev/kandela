@@ -175,7 +175,7 @@ function correoValido(control: AbstractControl): ValidationErrors | null {
     @if (porEliminar()) {
       <app-dialogo
         [titulo]="'¿Eliminar a ' + porEliminar()!.nombre + '?'"
-        tipo="! Acción irreversible"
+        tipo="Acción irreversible"
         [esDestructivo]="true"
         (cerrar)="cancelarEliminar()">
         <ul>
