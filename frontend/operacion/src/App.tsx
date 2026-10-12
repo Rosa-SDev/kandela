@@ -5,6 +5,7 @@ import { SalonShell } from './salon/SalonShell';
 import { SesionProveedor, useSesion } from './nucleo/sesion';
 
 import { CocinaShell } from './cocina/CocinaShell';
+import { CajaShell } from './caja/CajaShell';
 
 function Inicio() {
   const { usuario } = useSesion();
@@ -12,10 +13,6 @@ function Inicio() {
   if (usuario?.rol === 'CAJERO') return <Navigate to="/caja" replace />;
   if (usuario?.rol === 'COCINERO') return <Navigate to="/cocina" replace />;
   return <Navigate to="/login" replace />;
-}
-
-function CajaShell() {
-  return <div className="sh" data-densidad="tactil" data-superficie="arcilla" />;
 }
 
 function App() {
