@@ -64,3 +64,17 @@ export function esErrorKandela(e: unknown): e is ErrorKandela {
     'campos' in e
   );
 }
+
+/**
+ * Deja cualquier fallo en forma de ErrorKandela, listo para el Aviso.
+ *
+ * Lo que sale de `solicitud` ya viene traducido, pero un `catch` recibe
+ * `unknown`: si lo que llegó no es un error nuestro —un fallo del navegador,
+ * por ejemplo— se muestra un mensaje genérico en vez de romper la pantalla.
+ */
+export function comoErrorKandela(error: unknown): ErrorKandela {
+  if (esErrorKandela(error)) {
+    return error;
+  }
+  return { status: null, titulo: 'No se pudo completar la solicitud.', texto: '', campos: {} };
+}
