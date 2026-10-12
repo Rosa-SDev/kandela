@@ -1,0 +1,176 @@
+<div class="adm-cab">
+  <app-titulo texto="Carta" [par]="platillos().length + ' platillos'"></app-titulo>
+  <app-boton variante="calor" (accion)="abrirCrear()">Nuevo platillo</app-boton>
+</div>
+
+<div class="adm-herr">
+  <app-filtros 
+    [items]="filtrosCategorias()" 
+    [activo]="categoriaActiva()" 
+    (seleccion)="cambiarCategoria($event)">
+  </app-filtros>
+</div>
+
+@if (errorSrv()) {
+  <app-aviso tono="err" glifo="✕" [titulo]="errorSrv()!.titulo">
+    {{ errorSrv()!.texto }}
+  </app-aviso>
+}
+
+@if (avisoOk()) {
+  <app-aviso tono="" glifo="✓" [titulo]="avisoOk()!.titulo">
+    {{ avisoOk()!.texto }}
+  </app-aviso>
+}
+
+<table class="f-tabla">
+  <thead>
+    <tr>
+      <th>Platillo</th>
+      <th>Categoría</th>
+      <th class="n">Precio</th>
+      <th>Disponibilidad</th>
+      <th class="acc"></th>
+    </tr>
+  </thead>
+  <tbody>
+    @for (c of platillosFiltrados(); track c.id) {
+      <tr>
+        <td><b>{{ c.nombre }}</b></td>
+        <td>{{ c.categoria }}</td>
+        <td class="n">{{ formatearDinero(c.precio) }}</td>
+        <td>
+          @if (!c.disponible) {
+            <app-estado glifo="✕" texto="Agotado" tono="off"></app-estado>
+          }
+        </td>
+        <td class="acc">
+          <app-boton variante="texto" (accion)="abrirEditar(c)">Editar</app-boton>
+          <app-boton variante="texto" (accion)="abrirDescuento(c)">Descuento</app-boton>
+          <app-boton variante="texto-baja" (accion)="abrirEliminar(c)">Eliminar</app-boton>
+        </td>
+      </tr>
+    }
+    @if (platillosFiltrados().length === 0) {
+      <tr>
+        <td colspan="5" class="vacia">Sin platillos</td>
+      </tr>
+    }
+  </tbody>
+</table>
+
+<!-- Cajón (Drawer) Crear / Editar Platillo -->
+@if (drawerAbierto()) {
+  <app-drawer 
+    [titulo]="editandoId() ? 'Editar platillo' : 'Nuevo platillo'" 
+    (cerrar)="cerrarDrawer()">
+    
+    <form id="formPlatillo" [formGroup]="formulario" (ngSubmit)="guardar()" style="display: grid; gap: var(--s4);">
+      <app-campo 
+        label="Nombre" 
+        formControlName="nombre" 
+        [req]="true">
+      </app-campo>
+
+      <app-campo 
+        label="Descripción" 
+        formControlName="descripcion"
+        ayuda="Opcional. Aparece debajo del nombre en la carta.">
+      </app-campo>
+
+      <app-campo-opciones 
+        label="Categoría" 
+        formControlName="categoria" 
+        [opciones]="categoriasDisponibles" 
+        [req]="true"
+        ayuda="Entradas, Platos fuertes, Bebidas o Postres.">
+      </app-campo-opciones>
+
+      <app-campo 
+        label="Precio de carta" 
+        tipo="number" 
+        formControlName="precio" 
+        [req]="true"
+        ayuda="En pesos, sin impoconsumo.">
+      </app-campo>
+
+      <app-campo-opciones 
+        label="Disponibilidad" 
+        formControlName="disponible" 
+        [opciones]="['Disponible', 'Agotado']" 
+        [req]="true">
+      </app-campo-opciones>
+    </form>
+
+    @if (editandoId()) {
+      <app-boton pie-izq (accion)="abrirEliminarDesdeDrawer()" variante="texto-baja">
+        Eliminar
+      </app-boton>
+    }
+
+    <app-boton pie-der tipo="button" (accion)="cerrarDrawer()" variante="texto">
+      Cancelar
+    </app-boton>
+    <app-boton pie-der tipo="submit" (accion)="guardar()" variante="calor" [disabled]="formulario.invalid">
+      {{ editandoId() ? 'Guardar cambios' : 'Agregar a la carta' }}
+    </app-boton>
+
+  </app-drawer>
+}
+
+<!-- Diálogo de Descuento -->
+@if (dialogoDescuento()) {
+  <app-dialogo 
+    [titulo]="'Descuento para ' + platilloDescuento()!.nombre" 
+    tipo="Cambio de precio" 
+    (cerrar)="cerrarDescuento()">
+    
+    <ul>
+      <li>Rebaja el precio de carta de forma permanente.</li>
+      <li>Los pedidos ya tomados conservan el precio anterior.</li>
+    </ul>
+
+    <app-campo 
+      label="Porcentaje de descuento" 
+      tipo="number" 
+      [req]="true" 
+      [ngModel]="porcentajeDescuento()" 
+      (ngModelChange)="porcentajeDescuento.set($event)"
+      [ayuda]="ayudaDescuento()" 
+      [error]="errorDescuento()">
+    </app-campo>
+
+    <div pie style="display: flex; gap: 12px; justify-content: flex-end; align-items: center; width: 100%;">
+      <app-boton tipo="button" (accion)="cerrarDescuento()" variante="tinta">
+        Volver
+      </app-boton>
+      <app-boton tipo="button" (accion)="confirmarDescuento()" variante="calor" [disabled]="!descuentoValido()">
+        Aplicar descuento
+      </app-boton>
+    </div>
+  </app-dialogo>
+}
+
+<!-- Diálogo de Eliminar -->
+@if (dialogoEliminar()) {
+  <app-dialogo 
+    [titulo]="'¿Eliminar ' + platilloEliminar()!.nombre + ' de la carta?'" 
+    tipo="Acción irreversible" 
+    [esDestructivo]="true" 
+    (cerrar)="cerrarEliminar()">
+    
+    <ul>
+      <li>Deja de aparecer en la carta del salón y en la disponibilidad de cocina.</li>
+      <li>Los pedidos que ya lo tienen conservan su nombre y su precio.</li>
+    </ul>
+
+    <div pie style="display: flex; gap: 12px; justify-content: flex-end; align-items: center; width: 100%;">
+      <app-boton tipo="button" (accion)="cerrarEliminar()" variante="tinta">
+        Volver
+      </app-boton>
+      <app-boton tipo="button" (accion)="confirmarEliminar()" variante="calor">
+        Eliminar platillo
+      </app-boton>
+    </div>
+  </app-dialogo>
+}
