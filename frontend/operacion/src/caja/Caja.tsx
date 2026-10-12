@@ -5,6 +5,11 @@ import { Titulo } from '../componentes/Titulo';
 import { Aviso } from '../componentes/Aviso';
 import { Cuenta } from '../objetos/Cuenta';
 import { Liquidacion } from '../objetos/Liquidacion';
+import { Boton } from '../componentes/Boton';
+import { dinero } from '../componentes/Cifra';
+import { hora } from '../objetos/estadoPedido';
+import { useSesion } from '../nucleo/sesion';
+import { Cobro, type CobroHecho } from './Cobro';
 import { liquidar, ordenarCola, porCobrar } from './liquidar';
 
 /** Cada cuánto se vuelve a preguntar por los pedidos. */
@@ -21,6 +26,8 @@ export function Caja() {
   const [meseros, setMeseros] = useState<Map<number, string>>(new Map());
   const [elegidoId, setElegidoId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [cobros, setCobros] = useState<Map<number, CobroHecho>>(new Map());
+  const { usuario } = useSesion();
 
   useEffect(() => {
     get<UsuarioDTO[]>('/usuarios')
@@ -53,9 +60,28 @@ export function Caja() {
     };
   }, []);
 
-  const cola = ordenarCola(porCobrar(pedidos));
+  const pendientes = ordenarCola(porCobrar(pedidos));
+  // Lo cobrado en este turno se queda al final de la cola, tachado, hasta pasar a la siguiente.
+  const cobradas = pedidos.filter((p) => p.estado === 'PAGADO' && cobros.has(p.id));
+  const cola = [...pendientes, ...cobradas];
   // Si la cajera no ha elegido ninguna, se muestra la primera de la cola.
-  const elegido = pedidos.find((p) => p.id === elegidoId) ?? cola[0] ?? null;
+  const elegido = pedidos.find((p) => p.id === elegidoId) ?? pendientes[0] ?? null;
+  const hecho = elegido ? cobros.get(elegido.id) : undefined;
+
+  async function alCobrar(cobro: CobroHecho) {
+    setCobros((antes) => new Map(antes).set(cobro.pedidoId, cobro));
+    setElegidoId(cobro.pedidoId);
+    try {
+      setPedidos(await get<PedidoDTO[]>('/pedidos'));
+    } catch {
+      // El sondeo de cada 5 segundos lo vuelve a intentar.
+    }
+  }
+
+  function siguienteCuenta() {
+    setCobros(new Map());
+    setElegidoId(pendientes[0]?.id ?? null);
+  }
   const meseroDe = (pedido: PedidoDTO) => meseros.get(pedido.meseroId) ?? 'Mesero';
 
   return (
@@ -71,7 +97,7 @@ export function Caja() {
       }}
     >
       <section>
-        <Titulo texto="Caja" par={`${cola.length} por cobrar`} />
+        <Titulo texto="Caja" par={`${pendientes.length} por cobrar`} />
         {error ? <Aviso tono="err" glifo="!" titulo={error} /> : null}
         <div style={{ borderTop: '2px solid var(--tinta)', marginTop: 'var(--s4)' }}>
           {cola.map((pedido) => (
@@ -89,7 +115,39 @@ export function Caja() {
 
       <aside style={{ height: 'calc(100vh - 8rem)', position: 'sticky', top: 0 }}>
         {elegido ? (
-          <Liquidacion pedido={elegido} mesero={meseroDe(elegido)} />
+          <Liquidacion
+            pedido={elegido}
+            mesero={meseroDe(elegido)}
+            pie={
+              hecho ? (
+                <>
+                  <div className="f-liq__hecho" role="status">
+                    <b>
+                      ✓ Cobrado · {hecho.metodo} · {hecho.factura.numero}
+                    </b>
+                    {hecho.recibido !== null && hecho.cambio !== null ? (
+                      <span>
+                        Recibido {dinero(hecho.recibido)} · Cambio {dinero(hecho.cambio)}
+                      </span>
+                    ) : null}
+                    <span className="mono">
+                      {hora(hecho.factura.fecha)}
+                      {elegido.mesaNumero != null ? ` · La mesa ${elegido.mesaNumero} quedó libre.` : ''}
+                    </span>
+                  </div>
+                  <Boton texto="Siguiente cuenta" variante="tinta" ancho onClick={siguienteCuenta} />
+                </>
+              ) : elegido.estado !== 'PAGADO' && usuario ? (
+                <Cobro
+                  key={elegido.id}
+                  pedido={elegido}
+                  total={liquidar(elegido.total).total}
+                  cajeroId={usuario.id}
+                  onCobrado={alCobrar}
+                />
+              ) : null
+            }
+          />
         ) : (
           <Aviso glifo="✓" titulo="No hay cuentas por cobrar." texto="Las nuevas aparecen solas." />
         )}
