@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { BarraRol } from '../componentes/BarraRol';
 import { useSesion } from '../nucleo/sesion';
 import { Caja } from './Caja';
+import { Facturas } from './Facturas';
 
 /**
  * La interfaz de la cajera: táctil y sobre arcilla, igual que el salón.
@@ -9,6 +11,7 @@ import { Caja } from './Caja';
 export function CajaShell() {
   const { usuario, cerrar } = useSesion();
   const navegar = useNavigate();
+  const [tab, setTab] = useState<'caja' | 'facturas'>('caja');
 
   function salir() {
     cerrar();
@@ -18,8 +21,9 @@ export function CajaShell() {
   return (
     <div className="sh" data-densidad="tactil" data-superficie="arcilla">
       <BarraRol
-        tabs={['Caja']}
-        activa={0}
+        tabs={['Caja', 'Facturas']}
+        activa={tab === 'caja' ? 0 : 1}
+        onCambiarTab={(indice) => setTab(indice === 0 ? 'caja' : 'facturas')}
         quien={
           <>
             Cajera · <b>{usuario?.nombre}</b>
@@ -27,7 +31,7 @@ export function CajaShell() {
         }
         onSalir={salir}
       />
-      <Caja />
+      {tab === 'caja' ? <Caja /> : <Facturas />}
     </div>
   );
 }
