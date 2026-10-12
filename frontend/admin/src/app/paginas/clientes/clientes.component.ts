@@ -47,7 +47,7 @@ function noVacio(control: AbstractControl): ValidationErrors | null {
     }
 
     <app-tabla
-      [columnas]="['Nombre', 'Documento', 'Teléfono', 'Reservas']"
+      [columnas]="['Nombre', 'Documento', 'Teléfono', 'Reservas', '']"
       [vacia]="!cargando() && clientes().length === 0"
       [mensajeVacia]="termino() ? 'SIN RESULTADOS' : 'SIN CLIENTES'"
       [subMensajeVacia]="termino() ? 'ningún cliente se llama «' + termino() + '»' : null">
@@ -57,12 +57,18 @@ function noVacio(control: AbstractControl): ValidationErrors | null {
           <td>{{ c.documento }}</td>
           <td>{{ c.telefono ?? '—' }}</td>
           <td>{{ reservasPorCliente()[c.id] ?? 0 }}</td>
+          <td class="acc">
+            <app-boton variante="texto" (accion)="editar(c)">Editar</app-boton>
+          </td>
         </tr>
       }
     </app-tabla>
 
     @if (drawerAbierto()) {
-      <app-drawer titulo="Nuevo cliente" (cerrar)="cerrar()">
+      <app-drawer
+        [titulo]="editando() ? 'Editar cliente' : 'Nuevo cliente'"
+        [par]="editando()?.nombre ?? null"
+        (cerrar)="cerrar()">
         @if (resumen()) {
           <app-aviso tono="err" glifo="!" [titulo]="resumen()!.titulo">
             {{ resumen()!.texto }}
@@ -95,7 +101,7 @@ function noVacio(control: AbstractControl): ValidationErrors | null {
 
         <app-boton pie-der variante="texto" (accion)="cerrar()">Cancelar</app-boton>
         <app-boton pie-der variante="calor" [disabled]="guardando()" (accion)="guardar()">
-          Registrar cliente
+          {{ editando() ? 'Guardar cambios' : 'Registrar cliente' }}
         </app-boton>
       </app-drawer>
     }
@@ -118,6 +124,7 @@ export class ClientesComponent implements OnInit {
   resaltadoId = signal<number | null>(null);
 
   drawerAbierto = signal(false);
+  editando = signal<ClienteDTO | null>(null);
   guardando = signal(false);
   resumen = signal<{ titulo: string; texto: string } | null>(null);
   errorDocumentoSrv = signal<string | null>(null);
@@ -170,7 +177,22 @@ export class ClientesComponent implements OnInit {
   }
 
   abrir() {
+    this.editando.set(null);
     this.formulario.reset({ nombre: '', documento: '', telefono: '' });
+    this.preparar();
+  }
+
+  editar(cliente: ClienteDTO) {
+    this.editando.set(cliente);
+    this.formulario.reset({
+      nombre: cliente.nombre,
+      documento: cliente.documento,
+      telefono: cliente.telefono ?? ''
+    });
+    this.preparar();
+  }
+
+  private preparar() {
     this.resumen.set(null);
     this.errorDocumentoSrv.set(null);
     this.exito.set(null);
@@ -210,25 +232,36 @@ export class ClientesComponent implements OnInit {
       documento: valores.documento.trim(),
       telefono: valores.telefono.trim() || null
     };
+    const original = this.editando();
     this.guardando.set(true);
     this.resumen.set(null);
 
-    this.api.post<ClienteDTO>('/api/clientes', datos).subscribe({
+    const peticion = original
+      ? this.api.put<ClienteDTO>(`/api/clientes/${original.id}`, datos)
+      : this.api.post<ClienteDTO>('/api/clientes', datos);
+
+    peticion.subscribe({
       next: (guardado) => {
         this.guardando.set(false);
         this.drawerAbierto.set(false);
         this.resaltadoId.set(guardado.id);
-        this.exito.set(`Cliente ${guardado.nombre} registrado.`);
-        // Se limpia la búsqueda para que el cliente nuevo quede a la vista.
-        this.busqueda.setValue('', { emitEvent: false });
-        this.termino.set('');
+        if (original) {
+          this.exito.set(`Cliente ${guardado.nombre} actualizado.`);
+        } else {
+          this.exito.set(`Cliente ${guardado.nombre} registrado.`);
+          // Se limpia la búsqueda para que el cliente nuevo quede a la vista.
+          this.busqueda.setValue('', { emitEvent: false });
+          this.termino.set('');
+        }
         this.cargar();
       },
       error: (err) => {
         this.guardando.set(false);
         if (err.status === 409) {
           this.errorDocumentoSrv.set('Revise este campo.');
-          const dueno = this.todos().find((c) => c.documento === datos.documento);
+          const dueno = this.todos().find(
+            (c) => c.documento === datos.documento && c.id !== original?.id
+          );
           this.resumen.set({
             titulo: err.titulo,
             texto: dueno
