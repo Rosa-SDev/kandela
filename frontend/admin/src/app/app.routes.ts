@@ -4,6 +4,7 @@ import { AdminShellComponent } from './shell/admin-shell.component';
 import { LoginComponent } from './acceso/login.component';
 import { UsuariosComponent } from './paginas/usuarios/usuarios.component';
 import { ClientesComponent } from './paginas/clientes/clientes.component';
+import { ReservasComponent } from './paginas/reservas/reservas.component';
 
 // Componentes falsos para que no falle la compilación mientras los demás hacen sus pantallas
 import { Component } from '@angular/core';
@@ -21,7 +22,7 @@ export const routes: Routes = [
     children: [
       { path: 'operacion/mesas', component: DummyComponent },
       { path: 'operacion/pedidos', component: DummyComponent },
-      { path: 'operacion/reservas', component: DummyComponent },
+      { path: 'operacion/reservas', component: ReservasComponent },
       { path: 'operacion', redirectTo: 'operacion/mesas', pathMatch: 'full' },
       
       { path: 'carta', loadComponent: () => import('./operacion/carta/carta.component').then(m => m.CartaComponent) },
