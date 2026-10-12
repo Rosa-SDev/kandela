@@ -5,6 +5,7 @@ import { LoginComponent } from './acceso/login.component';
 import { UsuariosComponent } from './paginas/usuarios/usuarios.component';
 import { ClientesComponent } from './paginas/clientes/clientes.component';
 import { MesasComponent } from './paginas/mesas/mesas.component';
+import { PedidosComponent } from './paginas/pedidos/pedidos.component';
 import { ReservasComponent } from './paginas/reservas/reservas.component';
 
 // Componentes falsos para que no falle la compilación mientras los demás hacen sus pantallas
@@ -22,7 +23,7 @@ export const routes: Routes = [
     canActivate: [rolGuard],
     children: [
       { path: 'operacion/mesas', component: MesasComponent },
-      { path: 'operacion/pedidos', component: DummyComponent },
+      { path: 'operacion/pedidos', component: PedidosComponent },
       { path: 'operacion/reservas', component: ReservasComponent },
       { path: 'operacion', redirectTo: 'operacion/mesas', pathMatch: 'full' },
       
