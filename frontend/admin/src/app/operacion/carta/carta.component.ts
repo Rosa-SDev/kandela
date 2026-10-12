@@ -31,7 +31,14 @@ import { ErrorKandela } from '@compartido/api/errores';
     EstadoComponent,
     AvisoComponent
   ],
-  templateUrl: './carta.component.html'
+  templateUrl: './carta.component.html',
+  styles: [`
+    :host {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s4);
+    }
+  `]
 })
 export class CartaComponent implements OnInit {
   private cartaSrv = inject(CartaService);
