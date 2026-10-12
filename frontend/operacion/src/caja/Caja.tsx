@@ -4,6 +4,7 @@ import { get, esErrorKandela } from '../nucleo/api';
 import { Titulo } from '../componentes/Titulo';
 import { Aviso } from '../componentes/Aviso';
 import { Cuenta } from '../objetos/Cuenta';
+import { Liquidacion } from '../objetos/Liquidacion';
 import { liquidar, ordenarCola, porCobrar } from './liquidar';
 
 /** Cada cuánto se vuelve a preguntar por los pedidos. */
@@ -53,6 +54,9 @@ export function Caja() {
   }, []);
 
   const cola = ordenarCola(porCobrar(pedidos));
+  // Si la cajera no ha elegido ninguna, se muestra la primera de la cola.
+  const elegido = pedidos.find((p) => p.id === elegidoId) ?? cola[0] ?? null;
+  const meseroDe = (pedido: PedidoDTO) => meseros.get(pedido.meseroId) ?? 'Mesero';
 
   return (
     <div
@@ -75,13 +79,21 @@ export function Caja() {
               key={pedido.id}
               pedido={pedido}
               total={liquidar(pedido.total).total}
-              mesero={meseros.get(pedido.meseroId) ?? 'Mesero'}
-              seleccionada={pedido.id === elegidoId}
+              mesero={meseroDe(pedido)}
+              seleccionada={pedido.id === elegido?.id}
               onElegir={() => setElegidoId(pedido.id)}
             />
           ))}
         </div>
       </section>
+
+      <aside style={{ height: 'calc(100vh - 8rem)', position: 'sticky', top: 0 }}>
+        {elegido ? (
+          <Liquidacion pedido={elegido} mesero={meseroDe(elegido)} />
+        ) : (
+          <Aviso glifo="✓" titulo="No hay cuentas por cobrar." texto="Las nuevas aparecen solas." />
+        )}
+      </aside>
     </div>
   );
 }
