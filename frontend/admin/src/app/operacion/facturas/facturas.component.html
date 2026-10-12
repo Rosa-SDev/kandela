@@ -1,0 +1,89 @@
+<div class="adm-cab">
+  <app-titulo texto="Facturas" [par]="vigentesCount() + ' vigentes'"></app-titulo>
+</div>
+
+@if (errorSrv()) {
+  <app-aviso tono="err" glifo="✕" [titulo]="errorSrv()!.titulo">
+    {{ errorSrv()!.texto }}
+  </app-aviso>
+}
+
+@if (avisoOk()) {
+  <app-aviso tono="" glifo="✓" [titulo]="avisoOk()!.titulo">
+    {{ avisoOk()!.texto }}
+  </app-aviso>
+}
+
+<table class="f-tabla">
+  <thead>
+    <tr>
+      <th>Número</th>
+      <th class="n">Hora</th>
+      <th>Mesa</th>
+      <th>Pedido</th>
+      <th>Método</th>
+      <th class="n">Consumo</th>
+      <th class="n">Impoconsumo</th>
+      <th class="n">Total</th>
+      <th>Estado</th>
+      <th class="acc"></th>
+    </tr>
+  </thead>
+  <tbody>
+    @for (f of facturas(); track f.id) {
+      <tr [class.apagada]="f.anulada">
+        <td><b class="mono">{{ f.numero }}</b></td>
+        <td class="n"><span class="mono">{{ f.hora }}</span></td>
+        <td>{{ f.mesa }}</td>
+        <td><span class="mono">#{{ f.pedidoId }}</span></td>
+        <td>{{ f.metodo }}</td>
+        <td class="n">{{ formatearDinero(f.consumo) }}</td>
+        <td class="n">{{ formatearDinero(f.impoconsumo) }}</td>
+        <td class="n"><b>{{ formatearDinero(f.total) }}</b></td>
+        <td>
+          @if (f.anulada) {
+            <app-estado glifo="✕" texto="Anulada" tono="off"></app-estado>
+          }
+        </td>
+        <td class="acc">
+          @if (!f.anulada) {
+            <app-boton variante="texto-baja" (accion)="abrirAnular(f)">
+              Anular
+            </app-boton>
+          }
+        </td>
+      </tr>
+    }
+    @if (facturas().length === 0) {
+      <tr>
+        <td colspan="10" class="vacia">
+          Sin facturas <span>(todavía)</span>
+        </td>
+      </tr>
+    }
+  </tbody>
+</table>
+
+<!-- Diálogo de Anular Factura -->
+@if (dialogoAnular()) {
+  <app-dialogo 
+    [titulo]="'¿Anular la factura ' + facturaAAnular()!.numero + '?'" 
+    tipo="Acción irreversible" 
+    [esDestructivo]="true" 
+    (cerrar)="cerrarAnular()">
+    
+    <ul>
+      <li>La factura queda marcada como anulada; no se borra.</li>
+      <li>El pedido no se reabre y la mesa conserva su estado.</li>
+    </ul>
+
+    <div pie style="display: flex; gap: 12px; justify-content: flex-end; align-items: center; width: 100%;">
+      <app-boton tipo="button" (accion)="cerrarAnular()" variante="tinta">
+        Volver
+      </app-boton>
+      <app-boton tipo="button" (accion)="confirmarAnular()" variante="calor">
+        Anular factura
+      </app-boton>
+    </div>
+  </app-dialogo>
+}

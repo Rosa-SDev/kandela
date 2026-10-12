@@ -27,7 +27,7 @@ export const routes: Routes = [
       { path: 'carta', loadComponent: () => import('./operacion/carta/carta.component').then(m => m.CartaComponent) },
       { path: 'operacion/carta', redirectTo: 'carta', pathMatch: 'full' },
       { path: 'clientes', component: DummyComponent },
-      { path: 'facturas', component: DummyComponent },
+      { path: 'facturas', loadComponent: () => import('./operacion/facturas/facturas.component').then(m => m.FacturasComponent) },
       { path: 'usuarios', component: UsuariosComponent },
       
       { path: '', redirectTo: 'operacion/mesas', pathMatch: 'full' }
