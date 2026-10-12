@@ -183,3 +183,129 @@
       --titulo: 32px
    }
 }
+
+/* ---- Cocina · KDS ---- */
+.kds-cab {
+   flex: none;
+   display: flex;
+   justify-content: space-between;
+   align-items: center;
+   padding: 14px var(--s6) 10px;
+}
+
+.kds-reloj {
+   font-family: var(--f-doc);
+   font-size: 28px;
+   font-weight: 700;
+}
+
+.kds-tablero {
+   flex: 1;
+   min-height: 0;
+   display: grid;
+   grid-template-columns: 2fr 1fr;
+   gap: var(--s5);
+   padding: 0 var(--s6) var(--s5);
+}
+
+.kds-col {
+   display: flex;
+   flex-direction: column;
+   gap: 12px;
+   min-height: 0;
+}
+
+.kds-colh {
+   margin: 0;
+   flex: none;
+   display: flex;
+   justify-content: space-between;
+   align-items: baseline;
+   font-family: var(--f-voz);
+   font-weight: 400;
+   font-size: 22px;
+   text-transform: uppercase;
+   letter-spacing: .04em;
+   color: var(--texto-2);
+   border-bottom: 2px solid var(--filete);
+   padding-bottom: 6px;
+}
+
+.kds-colh span {
+   font-family: var(--f-doc);
+   font-size: 18px;
+}
+
+.kds-grid {
+   flex: 1;
+   min-height: 0;
+   overflow: auto;
+   display: grid;
+   grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--ticket, 340px)), 1fr));
+   align-content: start;
+   gap: 14px;
+}
+
+.kds-vacio {
+   font-family: var(--f-voz);
+   font-size: 24px;
+   text-transform: uppercase;
+   color: var(--texto-3);
+}
+
+.kds-vacio span {
+   font-family: var(--f-ui);
+   font-size: 16px;
+   text-transform: none;
+}
+
+.kds-sec {
+   flex: 1;
+   min-height: 0;
+   overflow: auto;
+   padding: 0 var(--s6) var(--s6);
+   display: flex;
+   flex-direction: column;
+   gap: var(--s4);
+}
+
+.kds-disp {
+   display: grid;
+   grid-template-columns: repeat(auto-fill, minmax(560px, 1fr));
+   gap: 14px;
+}
+
+.kds-plato {
+   display: grid;
+   grid-template-columns: minmax(0, 1fr) auto;
+   gap: var(--s4);
+   align-items: center;
+   padding: 14px 18px;
+}
+
+.kds-plato b {
+   display: block;
+   font-size: 22px;
+}
+
+.kds-plato span {
+   font-size: 16px;
+   color: var(--tinta-3);
+}
+
+.kds-plato--agotado b {
+   text-decoration: line-through;
+   color: var(--tinta-3);
+}
+
+.kds-plato__acc {
+   display: flex;
+   align-items: center;
+   justify-content: flex-end;
+   gap: var(--s4);
+}
+
+.kds-plato__acc .f-estado {
+   font-size: 16px;
+}
+
