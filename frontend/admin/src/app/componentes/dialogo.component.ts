@@ -15,7 +15,7 @@ import { Component, input, output, ElementRef, ViewChild, AfterViewInit, HostLis
         <h2 class="f-titulo">{{ titulo() }}</h2>
         
         <ng-content></ng-content>
-        
+
         <div class="f-dialogo__pie">
           <ng-content select="[pie]"></ng-content>
         </div>

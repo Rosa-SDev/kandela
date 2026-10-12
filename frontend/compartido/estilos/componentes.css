@@ -329,7 +329,14 @@
    (capa 2: mismos tokens; no conocen el rol)
    ===================================================================== */
 .f-btn--texto-baja {
-   color: var(--ladrillo-os)
+   color: var(--ladrillo-os);
+   font-weight: 700;
+   font-size: var(--txt);
+   text-decoration: underline;
+   text-underline-offset: 4px;
+   text-decoration-thickness: 2px;
+   padding: 0 var(--s2)
+
 }
 
 .f-campo {
@@ -629,6 +636,8 @@
    display: grid;
    gap: var(--s4);
    padding: var(--s5);
+   background: var(--papel);
+   color: var(--tinta);
    border-top: 6px solid var(--tinta);
    --txt: 15px;
    --ctl: 44px

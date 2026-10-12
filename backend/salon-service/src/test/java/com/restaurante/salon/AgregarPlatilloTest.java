@@ -2,6 +2,8 @@ package com.restaurante.salon;
 
 import com.jayway.jsonpath.JsonPath;
 import com.restaurante.salon.cliente.CartaClient;
+import com.restaurante.salon.cliente.UsuarioRemoto;
+import com.restaurante.salon.cliente.UsuariosClient;
 import com.restaurante.salon.cliente.PlatilloRemoto;
 import com.restaurante.salon.exception.NoEncontradoException;
 import com.restaurante.salon.exception.ServicioNoDisponibleException;
@@ -21,6 +23,7 @@ import java.math.BigDecimal;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -49,11 +52,19 @@ class AgregarPlatilloTest {
     @MockitoBean
     private CartaClient cartaClient;
 
+    @MockitoBean
+    private UsuariosClient usuariosClient;
+
     private MockMvc mockMvc;
 
     @BeforeEach
     void prepararMockMvc() {
         this.mockMvc = MockMvcBuilders.webAppContextSetup(this.contextoWeb).build();
+
+        // El pedido se crea validando el mesero contra usuarios-service. Aquí se
+        // simula esa consulta: lo que se prueba es el salón, no la llamada remota.
+        given(usuariosClient.obtener(anyLong())).willAnswer(invocacion ->
+                new UsuarioRemoto(invocacion.getArgument(0), "Mesero Demo", "mesero@raizysazon.co", "MESERO", true));
     }
 
     @Test

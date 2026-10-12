@@ -1,6 +1,7 @@
 package com.restaurante.usuarios.service;
 
 import com.restaurante.usuarios.dto.CrearUsuarioDTO;
+import com.restaurante.usuarios.dto.ActualizarUsuarioDTO;
 import com.restaurante.usuarios.dto.UsuarioDTO;
 import com.restaurante.usuarios.exception.ConflictoException;
 import com.restaurante.usuarios.exception.CredencialesInvalidasException;
@@ -43,12 +44,13 @@ public class UsuarioService {
         return UsuarioDTO.de(buscarEntidad(id));
     }
 
-    /**
-     * Actualiza nombre, correo y contraseña. El rol no se puede cambiar por
-     * esta vía: en SINGLE_TABLE cambiar de subclase implicaría borrar y
-     * recrear la fila, y el contrato no pide esa operación.
+        /**
+     * Actualiza nombre y correo. La contraseña es opcional: si no viene (o viene
+     * vacía) se conserva el hash actual; si viene, se guarda su nuevo hash. El
+     * rol no se puede cambiar por esta vía: en SINGLE_TABLE cambiar de subclase
+     * implicaría borrar y recrear la fila, y el contrato no pide esa operación.
      */
-    public UsuarioDTO actualizar(Long id, CrearUsuarioDTO dto) {
+    public UsuarioDTO actualizar(Long id, ActualizarUsuarioDTO dto) {
         Usuario usuario = buscarEntidad(id);
 
         repositorio.findByCorreoIgnoreCase(dto.correo())
@@ -59,7 +61,9 @@ public class UsuarioService {
 
         usuario.setNombre(dto.nombre());
         usuario.setCorreo(dto.correo());
-        usuario.setPasswordHash(hash(dto.password()));
+        if (dto.password() != null && !dto.password().isBlank()) {
+            usuario.setPasswordHash(hash(dto.password()));
+        }
         return UsuarioDTO.de(repositorio.save(usuario));
     }
 
