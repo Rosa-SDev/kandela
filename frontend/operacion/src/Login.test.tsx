@@ -130,7 +130,7 @@ describe('Login', () => {
     expect(screen.getByText('Revise los datos e intente de nuevo.')).toBeInTheDocument();
   });
 
-  it('sin conexion con el servidor lo dice', async () => {
+  it('sin conexion con el servidor no pide revisar los datos', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
     pintarLogin();
 
@@ -138,6 +138,51 @@ describe('Login', () => {
     entrar();
 
     expect(await screen.findByText('No hay conexión con el servidor.')).toBeInTheDocument();
+    expect(screen.getByText('Intente de nuevo en un momento.')).toBeInTheDocument();
+    expect(screen.queryByText('Revise los datos e intente de nuevo.')).not.toBeInTheDocument();
+  });
+
+  it('si el servidor falla por dentro tampoco pide revisar los datos', async () => {
+    // Lo que devuelve el gateway cuando no alcanza al servicio de usuarios.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        respuesta(500, {
+          timestamp: '2026-10-11T20:52:58.972Z',
+          status: 500,
+          error: 'Internal Server Error',
+          path: '/api/auth/login',
+        }),
+      ),
+    );
+    pintarLogin();
+
+    escribirCredenciales('carlos.rojas@raizysazon.co', 'kandela123');
+    entrar();
+
+    expect(await screen.findByText('El servicio no está disponible en este momento.')).toBeInTheDocument();
+    expect(screen.getByText('Intente de nuevo en un momento.')).toBeInTheDocument();
+    expect(screen.queryByText('Revise los datos e intente de nuevo.')).not.toBeInTheDocument();
+  });
+
+  it('con un 503 del servicio de usuarios muestra su mensaje y pide esperar', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          respuesta(503, { error: 'El servicio de usuarios no está disponible en este momento.' }),
+        ),
+    );
+    pintarLogin();
+
+    escribirCredenciales('carlos.rojas@raizysazon.co', 'kandela123');
+    entrar();
+
+    expect(
+      await screen.findByText('El servicio de usuarios no está disponible en este momento.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Intente de nuevo en un momento.')).toBeInTheDocument();
   });
 
   it('el boton se bloquea mientras se envia', async () => {

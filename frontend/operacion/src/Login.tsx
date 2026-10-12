@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
+import type { ErrorKandela } from '@compartido/api/errores';
 import type { Rol, UsuarioDTO } from '@compartido/api/tipos';
 import { Aviso } from './componentes/Aviso';
 import { Boton } from './componentes/Boton';
@@ -19,6 +20,26 @@ const CORREO_VALIDO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 interface ErrorDeServidor {
   titulo: string;
   texto: string;
+}
+
+const REVISE_LOS_DATOS = 'Revise los datos e intente de nuevo.';
+const INTENTE_MAS_TARDE = 'Intente de nuevo en un momento.';
+
+/**
+ * Qué decir debajo del título del aviso.
+ *
+ * Si el error es de lo que se escribió, se le pide revisarlo; si el servidor
+ * no respondió o falló por dentro, revisar los datos no arregla nada y solo
+ * confunde, así que se le pide esperar.
+ */
+function segundoRenglon(error: ErrorKandela): string {
+  if (error.texto) {
+    return error.texto;
+  }
+  if (error.status === null || error.status >= 500) {
+    return INTENTE_MAS_TARDE;
+  }
+  return REVISE_LOS_DATOS;
 }
 
 interface ErroresDeCampo {
@@ -83,14 +104,11 @@ export function Login() {
     } catch (error) {
       if (esErrorKandela(error)) {
         setErrores({ correo: error.campos.correo, password: error.campos.password });
-        setErrorDeServidor({
-          titulo: error.titulo,
-          texto: error.texto || 'Revise los datos e intente de nuevo.',
-        });
+        setErrorDeServidor({ titulo: error.titulo, texto: segundoRenglon(error) });
       } else {
         setErrorDeServidor({
           titulo: 'No se pudo completar la solicitud.',
-          texto: 'Revise los datos e intente de nuevo.',
+          texto: INTENTE_MAS_TARDE,
         });
       }
     } finally {
