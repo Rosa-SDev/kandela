@@ -1,0 +1,38 @@
+<article class="f-comanda papel f-comanda--lectura">
+  <div class="f-comanda__banda">
+    <span class="f-titulo">Mesa {{ pedido().mesaNumero }}</span>
+    <span class="f-comanda__folio">#{{ pedido().id }}</span>
+  </div>
+
+  <div class="f-comanda__meta">
+    <app-estado
+      [glifo]="etiqueta().glifo"
+      [texto]="etiqueta().texto"
+      [tono]="etiqueta().tono">
+    </app-estado>
+    @if (horaDeEnvio()) {
+      <span class="mono">{{ horaDeEnvio() }}</span>
+    }
+  </div>
+
+  <div class="f-comanda__lineas">
+    @for (linea of lineas(); track linea.platilloId) {
+      <div class="f-linea">
+        <span class="f-linea__q">{{ linea.cantidad }}×</span>
+        <span class="f-linea__n">{{ linea.nombre }}</span>
+        <span class="f-linea__m">{{ importe(linea.importe) }}</span>
+      </div>
+    }
+  </div>
+
+  @if (pedido().observaciones) {
+    <div class="f-comanda__nota">{{ pedido().observaciones }}</div>
+  }
+
+  <div class="f-comanda__pie">
+    <div class="f-comanda__suma">
+      <span>{{ resumen() }} · sin impuestos</span>
+      <span class="f-cifra">{{ total() }}</span>
+    </div>
+  </div>
+</article>
