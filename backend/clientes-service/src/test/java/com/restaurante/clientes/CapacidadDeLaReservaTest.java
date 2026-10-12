@@ -115,6 +115,17 @@ class CapacidadDeLaReservaTest {
                 .andExpect(jsonPath("$.error").value("El salón no está disponible en este momento."));
     }
 
+    @Test
+    void siFaltanCamposObligatoriosVienenDentroDelFormatoComun() throws Exception {
+        mockMvc.perform(post("/api/reservas")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("La petición tiene campos inválidos"))
+                .andExpect(jsonPath("$.campos.clienteId").value("El cliente es obligatorio"))
+                .andExpect(jsonPath("$.campos.fechaHora").value("La fecha y hora son obligatorias"));
+    }
+
     /** Pide una reserva para mañana a las 19:00, con o sin mesa asignada. */
     private ResultActions pedirReserva(int numPersonas, Long mesaId) throws Exception {
         String manana = LocalDateTime.now().plusDays(1)
