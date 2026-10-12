@@ -55,13 +55,17 @@ function json(cuerpo: unknown, status = 200): Response {
 interface Respuestas {
   reservas?: () => Response | Promise<Response>;
   mesas?: () => Response | Promise<Response>;
+  cambio?: () => Response | Promise<Response>;
 }
 
 /** Responde según la ruta, para poder tumbar las mesas sin tumbar las reservas. */
 function simularBackend(respuestas: Respuestas) {
   vi.stubGlobal(
     'fetch',
-    vi.fn((url: string) => {
+    vi.fn((url: string, opciones?: RequestInit) => {
+      if (opciones?.method === 'PATCH') {
+        return Promise.resolve((respuestas.cambio ?? (() => json({})))());
+      }
       if (url === '/api/mesas') {
         return Promise.resolve((respuestas.mesas ?? (() => json(MESAS)))());
       }
@@ -139,5 +143,99 @@ describe('las reservas del salón', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
 
     await waitFor(() => expect(screen.getByText('Marcela Gómez')).toBeInTheDocument());
+  });
+});
+
+describe('los cambios de estado de la reserva', () => {
+  /** Captura las peticiones PATCH que salieron, ya convertidas desde JSON. */
+  function cambiosEnviados(): { ruta: string; cuerpo: unknown }[] {
+    const llamadas = (fetch as unknown as { mock: { calls: [string, RequestInit?][] } }).mock.calls;
+    return llamadas
+      .filter(([, opciones]) => opciones?.method === 'PATCH')
+      .map(([ruta, opciones]) => ({ ruta, cuerpo: JSON.parse(String(opciones?.body)) }));
+  }
+
+  it('ofrece confirmar solo en las pendientes', async () => {
+    simularBackend({ reservas: () => json([DE_MARCELA, DE_ANA]) });
+    render(<Reservas />);
+
+    await screen.findByText('Ana Torres');
+    expect(screen.getAllByRole('button', { name: 'Confirmar' })).toHaveLength(1);
+  });
+
+  it('ofrece cumplida solo en las confirmadas', async () => {
+    simularBackend({ reservas: () => json([DE_MARCELA, DE_ANA]) });
+    render(<Reservas />);
+
+    await screen.findByText('Marcela Gómez');
+    expect(screen.getAllByRole('button', { name: 'Cumplida' })).toHaveLength(1);
+  });
+
+  it('no ofrece nada en las reservas cerradas', async () => {
+    simularBackend({ reservas: () => json([CANCELADA]) });
+    render(<Reservas />);
+
+    await screen.findByText('Pedro Díaz');
+    expect(screen.queryByRole('button', { name: 'Confirmar' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Cumplida' })).not.toBeInTheDocument();
+  });
+
+  it('confirmar manda el estado nuevo a esa reserva', async () => {
+    simularBackend({
+      reservas: () => json([DE_ANA]),
+      cambio: () => json({ ...DE_ANA, estado: 'CONFIRMADA' }),
+    });
+    render(<Reservas />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirmar' }));
+
+    await waitFor(() =>
+      expect(cambiosEnviados()).toEqual([
+        { ruta: '/api/reservas/2/estado', cuerpo: { nuevoEstado: 'CONFIRMADA' } },
+      ]),
+    );
+  });
+
+  it('cuenta lo que paso y deja la fila en su estado nuevo', async () => {
+    simularBackend({
+      reservas: () => json([DE_ANA]),
+      cambio: () => json({ ...DE_ANA, estado: 'CONFIRMADA' }),
+    });
+    render(<Reservas />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirmar' }));
+
+    expect(await screen.findByText('Reserva de Ana Torres confirmada.')).toBeInTheDocument();
+    expect(screen.getByText('Confirmada')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cumplida' })).toBeInTheDocument();
+  });
+
+  it('cumplida lo dice con sus palabras', async () => {
+    simularBackend({
+      reservas: () => json([DE_MARCELA]),
+      cambio: () => json({ ...DE_MARCELA, estado: 'CUMPLIDA' }),
+    });
+    render(<Reservas />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Cumplida' }));
+
+    expect(
+      await screen.findByText('Reserva de Marcela Gómez marcada como cumplida.'),
+    ).toBeInTheDocument();
+  });
+
+  it('muestra el mensaje del servidor cuando el paso no es valido', async () => {
+    simularBackend({
+      reservas: () => json([DE_ANA]),
+      cambio: () => json({ error: 'No se puede pasar una reserva de PENDIENTE a CUMPLIDA.' }, 409),
+    });
+    render(<Reservas />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirmar' }));
+
+    expect(
+      await screen.findByText('No se puede pasar una reserva de PENDIENTE a CUMPLIDA.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Pendiente')).toBeInTheDocument();
   });
 });

@@ -1,12 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { MesaDTO, ReservaDTO } from '@compartido/api/tipos';
+import type { EstadoReserva, MesaDTO, ReservaDTO } from '@compartido/api/tipos';
 import type { ErrorKandela } from '@compartido/api/errores';
 import { Aviso } from '../componentes/Aviso';
 import { Boton } from '../componentes/Boton';
 import { Titulo } from '../componentes/Titulo';
 import { FilaReserva } from '../objetos/FilaReserva';
 import { esReservaVigente } from '../objetos/estadoReserva';
-import { comoErrorKandela, get } from '../nucleo/api';
+import { comoErrorKandela, get, patch } from '../nucleo/api';
+
+/** Cómo se cuenta lo que acaba de pasar con la reserva. */
+const HECHO: Partial<Record<EstadoReserva, string>> = {
+  CONFIRMADA: 'confirmada',
+  CUMPLIDA: 'marcada como cumplida',
+  CANCELADA: 'cancelada',
+};
 
 /** De identificador de mesa a número de mesa, que es lo que se lee en la fila. */
 function numerosDeMesa(mesas: MesaDTO[]): Map<number, number> {
@@ -29,6 +36,9 @@ export function Reservas() {
   const [mesas, setMesas] = useState<MesaDTO[]>([]);
   const [error, setError] = useState<ErrorKandela | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [cambiando, setCambiando] = useState<number | null>(null);
+  const [errorDeAccion, setErrorDeAccion] = useState<ErrorKandela | null>(null);
+  const [hecho, setHecho] = useState<string | null>(null);
 
   // Nada de setState antes del await: dentro de un efecto eso encadena renders.
   const cargar = useCallback(async () => {
@@ -63,6 +73,62 @@ export function Reservas() {
     void cargar();
   }
 
+  /**
+   * Mueve la reserva al estado siguiente.
+   *
+   * La lista se actualiza con la reserva que devuelve el servidor y no con una
+   * copia cambiada aquí: si el estado ya había cambiado por otro lado, lo que
+   * manda es lo que el servidor diga. Mientras la petición va, los botones de
+   * esa fila quedan bloqueados para no mandar el cambio dos veces.
+   */
+  async function cambiarEstado(reserva: ReservaDTO, nuevoEstado: EstadoReserva) {
+    if (cambiando !== null) {
+      return;
+    }
+    setCambiando(reserva.id);
+    setErrorDeAccion(null);
+    setHecho(null);
+    try {
+      const actualizada = await patch<ReservaDTO>(`/reservas/${reserva.id}/estado`, { nuevoEstado });
+      setReservas((anteriores) =>
+        anteriores.map((una) => (una.id === actualizada.id ? actualizada : una)),
+      );
+      setHecho(`Reserva de ${reserva.clienteNombre} ${HECHO[nuevoEstado]}.`);
+    } catch (fallo) {
+      setErrorDeAccion(comoErrorKandela(fallo));
+    } finally {
+      setCambiando(null);
+    }
+  }
+
+  /** Lo que se puede hacer con una reserva depende de en qué estado está. */
+  function accionesDe(reserva: ReservaDTO) {
+    if (!esReservaVigente(reserva.estado)) {
+      return null;
+    }
+    const bloqueada = cambiando !== null;
+    return (
+      <>
+        {reserva.estado === 'PENDIENTE' ? (
+          <Boton
+            texto="Confirmar"
+            variante="tinta"
+            disabled={bloqueada}
+            onClick={() => void cambiarEstado(reserva, 'CONFIRMADA')}
+          />
+        ) : null}
+        {reserva.estado === 'CONFIRMADA' ? (
+          <Boton
+            texto="Cumplida"
+            variante="tinta"
+            disabled={bloqueada}
+            onClick={() => void cambiarEstado(reserva, 'CUMPLIDA')}
+          />
+        ) : null}
+      </>
+    );
+  }
+
   const numeros = numerosDeMesa(mesas);
   const enOrden = [...reservas].sort((una, otra) => una.fechaHora.localeCompare(otra.fechaHora));
   const vigentes = enOrden.filter((reserva) => esReservaVigente(reserva.estado)).length;
@@ -82,6 +148,12 @@ export function Reservas() {
         />
       ) : null}
 
+      {errorDeAccion ? (
+        <Aviso tono="err" titulo={errorDeAccion.titulo} texto={errorDeAccion.texto} />
+      ) : null}
+
+      {hecho && !errorDeAccion ? <Aviso titulo={hecho} /> : null}
+
       {!cargando && !error && enOrden.length === 0 ? (
         <p className="salon-vacio">
           Sin reservas <span>(por ahora)</span>
@@ -95,6 +167,7 @@ export function Reservas() {
               key={reserva.id}
               reserva={reserva}
               mesaNumero={reserva.mesaId != null ? numeros.get(reserva.mesaId) : null}
+              acciones={accionesDe(reserva)}
             />
           ))}
         </div>
