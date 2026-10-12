@@ -1,0 +1,185 @@
+/* =====================================================================
+   CAPA 4 · Interfaces por rol de Kandela POS y KDS
+   =====================================================================
+   Las capas 1 a 3 (fundamentos, componentes y objetos) viven en
+   frontend/compartido/estilos y las comparten las dos aplicaciones. Esta
+   hoja es solo de esta aplicación: coloca las piezas en la pantalla y no
+   define ningún color, tipografía ni tamaño propio, solo variables que ya
+   existen.
+
+   El prototipo escribe estas reglas dentro de consultas de contenedor
+   porque simula el dispositivo en un marco. Aquí el contenedor es la
+   ventana, así que las mismas reglas van en consultas de medios.
+   ===================================================================== */
+
+/* El shell mide la ventana completa, así que su contenedor también. */
+#root {
+   height: 100%
+}
+
+.sh {
+   height: 100%;
+   display: flex;
+   flex-direction: column;
+   background: var(--fondo);
+   color: var(--texto);
+   font-size: var(--txt);
+   overflow: hidden;
+   position: relative
+}
+
+.sh-cuerpo {
+   flex: 1;
+   min-height: 0;
+   display: flex;
+   flex-direction: column
+}
+
+/* ---- Acceso ---- */
+.login {
+   flex: 1;
+   min-height: 0;
+   overflow: auto;
+   display: grid;
+   grid-template-columns: minmax(0, 1fr);
+   justify-items: center;
+   align-items: center;
+   padding: var(--s6) var(--s4)
+}
+
+.login__col {
+   width: min(400px, 100%);
+   min-width: 0;
+   display: grid;
+   gap: var(--s4)
+}
+
+.login__col .f-titulo {
+   --titulo: 40px
+}
+
+.login__nota {
+   margin: 0;
+   font-size: 14px;
+   color: var(--texto-2)
+}
+
+/* ---- Salón · Mesero ---- */
+/* Mínimo de texto del salón: 14 px, aunque la pieza sea de otra capa. */
+.sh-salon .f-estado,
+.sh-salon .f-plato__d,
+.sh-salon .f-comanda__nota label,
+.sh-salon .f-linea__n small {
+   font-size: 14px
+}
+
+.sh-cab {
+   display: flex;
+   flex-wrap: wrap;
+   align-items: flex-end;
+   justify-content: space-between;
+   gap: var(--s3) var(--s6)
+}
+
+.salon-plano {
+   flex: 1;
+   min-height: 0;
+   display: grid;
+   grid-template-columns: minmax(0, 1fr) 380px
+}
+
+.salon-mapa {
+   padding: var(--s6);
+   display: flex;
+   flex-direction: column;
+   gap: var(--s6);
+   min-height: 0;
+   overflow: auto
+}
+
+.salon-mapa__grid {
+   display: flex;
+   flex-wrap: wrap;
+   align-items: flex-end;
+   gap: calc(var(--u)*2.2) calc(var(--u)*2.6);
+   padding: calc(var(--u)*1.2)
+}
+
+.salon-detalle {
+   border-left: 1px solid var(--linea);
+   display: flex;
+   flex-direction: column;
+   min-height: 0;
+   padding: var(--s6) var(--s5);
+   gap: var(--s4);
+   overflow: auto
+}
+
+.salon-detalle__cerrar {
+   display: none
+}
+
+.salon-detalle__estado {
+   display: flex;
+   flex-wrap: wrap;
+   gap: var(--s2) var(--s4)
+}
+
+.salon-detalle p {
+   margin: 0;
+   color: var(--texto-2)
+}
+
+.salon-detalle .f-comanda {
+   flex: none
+}
+
+/* ---- Toma de pedido ---- */
+.salon-toma {
+   flex: 1;
+   min-height: 0;
+   display: flex;
+   flex-direction: column
+}
+
+.toma-cab {
+   flex: none;
+   display: flex;
+   align-items: center;
+   gap: var(--s4);
+   padding: var(--s4) var(--s6) 0
+}
+
+.toma-cuerpo {
+   flex: 1;
+   min-height: 0;
+   display: grid;
+   grid-template-columns: minmax(0, 1fr) 420px;
+   gap: var(--s6);
+   padding: var(--s4) var(--s6) var(--s6)
+}
+
+.toma-carta {
+   overflow: auto;
+   min-height: 0;
+   display: grid;
+   gap: var(--s4);
+   align-content: start
+}
+
+.toma-comanda {
+   display: flex;
+   flex-direction: column;
+   min-height: 0
+}
+
+.toma-comanda .f-comanda {
+   flex: 1
+}
+
+/* ---- Móvil ---- */
+@media (max-width: 600px) {
+   .login__col .f-titulo {
+      --titulo: 32px
+   }
+}

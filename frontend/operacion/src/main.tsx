@@ -9,6 +9,8 @@ import { BrowserRouter } from 'react-router';
 import '@compartido/estilos/fundamentos.css';
 import '@compartido/estilos/componentes.css';
 import '@compartido/estilos/objetos.css';
+// La capa 4 va al final: solo coloca en la pantalla las piezas de las capas anteriores.
+import './estilos/operacion.css';
 import App from './App.tsx';
 
 createRoot(document.getElementById('root')!).render(
