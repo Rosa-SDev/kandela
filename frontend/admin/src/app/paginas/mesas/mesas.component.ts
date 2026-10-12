@@ -15,6 +15,7 @@ import { AvisoComponent } from '../../componentes/aviso.component';
 import { EstadoComponent } from '../../componentes/estado.component';
 import { BotonComponent } from '../../componentes/boton.component';
 import { DrawerComponent } from '../../componentes/drawer.component';
+import { DialogoComponent } from '../../componentes/dialogo.component';
 import { CampoComponent } from '../../componentes/campo.component';
 import { MesasService } from './mesas.service';
 import { ClaveDeMesa, ETIQUETA_MESA, situacionDeMesa } from './estado-de-mesa';
@@ -62,6 +63,7 @@ function enteroPositivo(control: AbstractControl): ValidationErrors | null {
     EstadoComponent,
     BotonComponent,
     DrawerComponent,
+    DialogoComponent,
     CampoComponent
   ],
   templateUrl: './mesas.component.html'
@@ -86,6 +88,10 @@ export class MesasComponent implements OnInit {
   guardando = signal(false);
   resumen = signal<{ titulo: string; texto: string } | null>(null);
   errorNumeroSrv = signal<string | null>(null);
+
+  porEliminar = signal<FilaDeMesa | null>(null);
+  eliminando = signal(false);
+  errorDelDialogo = signal<{ titulo: string; texto: string } | null>(null);
 
   etiqueta = ETIQUETA_MESA;
 
@@ -228,6 +234,80 @@ export class MesasComponent implements OnInit {
         } else {
           this.resumen.set({ titulo: err.titulo, texto: 'No se guardó nada todavía.' });
         }
+      }
+    });
+  }
+
+  /**
+   * La fila de esa mesa, para poder eliminarla desde dentro del drawer.
+   *
+   * Hace falta la fila y no la mesa porque el diálogo nombra el pedido que la
+   * ocupa, y eso solo lo sabe la fila.
+   */
+  filaDe(mesa: MesaDTO): FilaDeMesa {
+    return (
+      this.filas().find((fila) => fila.mesa.id === mesa.id) ?? {
+        mesa,
+        clave: 'libre',
+        ahora: '',
+        pedidoId: null
+      }
+    );
+  }
+
+  pedirEliminar(fila: FilaDeMesa) {
+    this.error.set(null);
+    this.exito.set(null);
+    this.errorDelDialogo.set(null);
+    this.porEliminar.set(fila);
+  }
+
+  cancelarEliminar() {
+    this.porEliminar.set(null);
+  }
+
+  /**
+   * Las consecuencias de quitar la mesa del salón.
+   *
+   * Son las mismas haya o no reservas apuntando a ella: la de las reservas se
+   * enuncia como lo que pasaría, no como lo que va a pasar, porque esta
+   * pantalla no sabe cuántas hay sin cruzar la lista entera.
+   */
+  consecuenciasDeEliminar(): string[] {
+    return ['Sale del plano del salón.', 'Las reservas que la tenían asignada quedan sin mesa.'];
+  }
+
+  /**
+   * Quita la mesa, o explica dentro del diálogo por qué no se puede.
+   *
+   * El salón rechaza eliminar una mesa ocupada. El mensaje en negrita es el
+   * suyo; la segunda línea la compone la pantalla, que sí sabe qué pedido la
+   * está ocupando porque lo muestra en la columna «Ahora».
+   */
+  confirmarEliminar() {
+    const fila = this.porEliminar();
+    if (!fila || this.eliminando()) {
+      return;
+    }
+    this.eliminando.set(true);
+
+    this.mesasService.eliminar(fila.mesa.id).subscribe({
+      next: () => {
+        this.mesas.update((lista) => lista.filter((m) => m.id !== fila.mesa.id));
+        this.resaltadoId.set(null);
+        this.exito.set(`Mesa ${fila.mesa.numero} eliminada.`);
+        this.eliminando.set(false);
+        this.porEliminar.set(null);
+        this.drawerAbierto.set(false);
+      },
+      error: (err) => {
+        this.eliminando.set(false);
+        this.errorDelDialogo.set({
+          titulo: err.titulo,
+          texto: fila.pedidoId
+            ? `Está ocupada por el pedido #${fila.pedidoId}. Se podrá eliminar cuando quede libre.`
+            : 'No se eliminó nada.'
+        });
       }
     });
   }

@@ -34,6 +34,7 @@
       <td>{{ fila.ahora }}</td>
       <td class="acc">
         <app-boton variante="texto" (accion)="editar(fila.mesa)">Editar</app-boton>
+        <app-boton variante="texto-baja" (accion)="pedirEliminar(fila)">Eliminar</app-boton>
       </td>
     </tr>
   }
@@ -69,9 +70,41 @@
       <small class="f-req">* Obligatorio</small>
     </form>
 
+    @if (editando()) {
+      <app-boton pie-izq variante="baja" (accion)="pedirEliminar(filaDe(editando()!))">
+        Eliminar
+      </app-boton>
+    }
     <app-boton pie-der variante="texto" (accion)="cerrar()">Cancelar</app-boton>
     <app-boton pie-der variante="calor" [disabled]="guardando()" (accion)="guardar()">
       {{ editando() ? 'Guardar cambios' : 'Crear mesa' }}
     </app-boton>
   </app-drawer>
+}
+
+@if (porEliminar()) {
+  <app-dialogo
+    [titulo]="'¿Eliminar la mesa ' + porEliminar()!.mesa.numero + '?'"
+    tipo="Acción irreversible"
+    [esDestructivo]="true"
+    (cerrar)="cancelarEliminar()">
+    <ul>
+      @for (consecuencia of consecuenciasDeEliminar(); track consecuencia) {
+        <li>{{ consecuencia }}</li>
+      }
+    </ul>
+
+    @if (errorDelDialogo()) {
+      <app-aviso tono="err" glifo="!" [titulo]="errorDelDialogo()!.titulo">
+        {{ errorDelDialogo()!.texto }}
+      </app-aviso>
+    }
+
+    <app-boton pie variante="tinta" (accion)="cancelarEliminar()">Volver</app-boton>
+    @if (!errorDelDialogo()) {
+      <app-boton pie variante="calor" [disabled]="eliminando()" (accion)="confirmarEliminar()">
+        Eliminar mesa
+      </app-boton>
+    }
+  </app-dialogo>
 }
