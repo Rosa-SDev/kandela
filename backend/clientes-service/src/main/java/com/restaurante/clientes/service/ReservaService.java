@@ -6,6 +6,8 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
+import com.restaurante.clientes.cliente.MesaRemota;
+import com.restaurante.clientes.cliente.SalonClient;
 import com.restaurante.clientes.dto.CrearReservaDTO;
 import com.restaurante.clientes.dto.ReservaDTO;
 import com.restaurante.clientes.exception.NoEncontradoException;
@@ -21,10 +23,13 @@ public class ReservaService {
 
     private final ReservaRepository reservaRepository;
     private final ClienteRepository clienteRepository;
+    private final SalonClient salonClient;
 
-    public ReservaService(ReservaRepository reservaRepository, ClienteRepository clienteRepository) {
+    public ReservaService(ReservaRepository reservaRepository, ClienteRepository clienteRepository,
+            SalonClient salonClient) {
         this.reservaRepository = reservaRepository;
         this.clienteRepository = clienteRepository;
+        this.salonClient = salonClient;
     }
 
     public List<ReservaDTO> listar(EstadoReserva estado) {
@@ -51,8 +56,9 @@ public class ReservaService {
             throw new IllegalArgumentException("No se puede reservar para una fecha que ya pasó.");
         }
 
-        // TODO Avance 2: validar que numPersonas no supere la capacidad de mesaId
-        // (requiere consultar salon-service; fuera de alcance del Avance 1)
+        if (datos.mesaId() != null) {
+            validarLaCapacidad(datos.mesaId(), datos.numPersonas());
+        }
 
         Reserva reserva = new Reserva(datos.fechaHora(), datos.numPersonas(), cliente,
                 datos.mesaId(), datos.meseroId());
@@ -88,6 +94,24 @@ public class ReservaService {
 
     public void eliminar(Long id) {
         reservaRepository.delete(buscarEntidad(id));
+    }
+
+    /**
+     * Comprueba en el salón que la mesa elegida alcance para esa cantidad de gente.
+     *
+     * La mesa vive en otro servicio, con su propia base de datos, así que
+     * preguntarle es la única forma de conocer su capacidad. Se consulta solo
+     * cuando la reserva trae mesa: una reserva sin mesa asignada no tiene nada
+     * que validar, y así registrarla no depende de que el salón esté en pie.
+     */
+    private void validarLaCapacidad(Long mesaId, int numPersonas) {
+        MesaRemota mesa = salonClient.obtener(mesaId);
+
+        if (numPersonas > mesa.capacidad()) {
+            throw new ConflictoException("La mesa " + mesa.numero()
+                    + " no alcanza para " + numPersonas + " personas."
+                    + " Su capacidad es de " + mesa.capacidad() + ".");
+        }
     }
 
     private Reserva buscarEntidad(Long id) {

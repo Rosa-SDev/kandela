@@ -116,8 +116,6 @@ public class Reserva {
         this.meseroId = meseroId;
     }
 
-    // TODO Avance 2: validar que numPersonas no supere la capacidad de la mesa
-    // (requiere consultar salon-service; fuera de alcance del Avance 1)
     public void confirmar() {
         this.estado = EstadoReserva.CONFIRMADA;
     }
