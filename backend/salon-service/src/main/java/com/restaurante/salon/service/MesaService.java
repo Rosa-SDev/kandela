@@ -65,7 +65,8 @@ public class MesaService {
     public void eliminar(Long id) {
         Mesa mesa = buscarPorId(id);
         if (mesa.getEstado() == EstadoMesa.OCUPADA) {
-            throw new ConflictoException("No se puede eliminar una mesa OCUPADA.");
+            throw new ConflictoException(
+                    "No se puede eliminar la mesa " + mesa.getNumero() + " porque está ocupada.");
         }
         mesaRepository.delete(mesa);
     }
