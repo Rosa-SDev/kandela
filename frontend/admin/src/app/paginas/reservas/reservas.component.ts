@@ -57,7 +57,7 @@ const ESTADOS: Record<EstadoReserva, { glifo: string; texto: string; tono: '' | 
   ],
   template: `
     <div class="adm-cab">
-      <app-titulo texto="Reservas" [par]="vigentes() + ' vigentes'"></app-titulo>
+      <app-titulo texto="Reservas" [par]="vigentes() + (vigentes() === 1 ? ' vigente' : ' vigentes')"></app-titulo>
       <app-boton variante="calor" (accion)="abrir()">Nueva reserva</app-boton>
     </div>
 

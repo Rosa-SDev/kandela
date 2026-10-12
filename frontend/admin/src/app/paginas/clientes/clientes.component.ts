@@ -32,7 +32,7 @@ function noVacio(control: AbstractControl): ValidationErrors | null {
   ],
   template: `
     <div class="adm-cab">
-      <app-titulo texto="Clientes" [par]="total() + ' registrados'"></app-titulo>
+      <app-titulo texto="Clientes" [par]="total() + (total() === 1 ? ' registrado' : ' registrados')"></app-titulo>
       <app-boton variante="calor" (accion)="abrir()">Nuevo cliente</app-boton>
     </div>
 

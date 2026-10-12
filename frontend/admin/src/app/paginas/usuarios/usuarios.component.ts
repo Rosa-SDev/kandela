@@ -74,7 +74,7 @@ function correoValido(control: AbstractControl): ValidationErrors | null {
   ],
   template: `
     <div class="adm-cab">
-      <app-titulo texto="Usuarios" [par]="usuarios().length + ' registrados'"></app-titulo>
+      <app-titulo texto="Usuarios" [par]="usuarios().length + (usuarios().length === 1 ? ' registrado' : ' registrados')"></app-titulo>
       <app-boton variante="calor" (accion)="abrir()">Nuevo usuario</app-boton>
     </div>
 
