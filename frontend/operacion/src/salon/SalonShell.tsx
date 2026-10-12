@@ -2,6 +2,7 @@ import { Route, Routes, useLocation, useNavigate } from 'react-router';
 import { BarraInferior } from '../componentes/BarraInferior';
 import { BarraRol } from '../componentes/BarraRol';
 import { useSesion } from '../nucleo/sesion';
+import { CartaLectura } from './CartaLectura';
 import { MisPedidos } from './MisPedidos';
 import { Plano } from './Plano';
 import { TomaPedido } from './TomaPedido';
@@ -15,6 +16,7 @@ import { TomaPedido } from './TomaPedido';
 const SECCIONES = [
   { ruta: '/salon', escritorio: 'Salón', movil: 'Salón' },
   { ruta: '/salon/pedidos', escritorio: 'Mis pedidos', movil: 'Pedidos' },
+  { ruta: '/salon/carta', escritorio: 'Carta', movil: 'Carta' },
 ] as const;
 
 /**
@@ -61,6 +63,7 @@ export function SalonShell() {
         <Routes>
           <Route index element={<Plano />} />
           <Route path="pedidos" element={<MisPedidos />} />
+          <Route path="carta" element={<CartaLectura />} />
           <Route path="pedido/:id" element={<TomaPedido />} />
         </Routes>
       </div>
