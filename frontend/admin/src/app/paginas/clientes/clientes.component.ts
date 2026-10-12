@@ -22,7 +22,7 @@ import { CampoComponent } from '../../componentes/campo.component';
       <app-aviso tono="err" glifo="!" [titulo]="error()!"></app-aviso>
     }
 
-    <div style="max-width: 420px; margin-bottom: var(--s4)">
+    <div style="max-width: 420px; margin: var(--s4) 0 var(--s2)">
       <app-campo label="Buscar por nombre" [formControl]="busqueda"></app-campo>
     </div>
 
