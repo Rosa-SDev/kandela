@@ -73,12 +73,63 @@
    font-size: 14px
 }
 
+/* El drawer del salón es más ancho que el de administración: se usa con el
+   dedo, y los campos van en parejas. */
+.sh-salon .f-drawer {
+   width: 60%
+}
+
+.sh-salon .f-campo > label,
+.sh-salon .f-campo__ayuda,
+.sh-salon .f-campo__error {
+   font-size: 14px
+}
+
 .sh-cab {
    display: flex;
    flex-wrap: wrap;
    align-items: flex-end;
    justify-content: space-between;
    gap: var(--s3) var(--s6)
+}
+
+/* Mis pedidos, Reservas y Carta: una columna que ocupa el cuerpo y rueda. */
+.salon-sec {
+   flex: 1;
+   min-height: 0;
+   overflow: auto;
+   padding: var(--s6);
+   display: flex;
+   flex-direction: column;
+   gap: var(--s4)
+}
+
+.salon-comandas {
+   display: grid;
+   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+   gap: var(--s5);
+   align-items: start
+}
+
+.salon-sec .f-carta {
+   max-width: 760px
+}
+
+/* Sección sin nada que mostrar: una sola línea, en voz baja. */
+.salon-vacio {
+   margin: 0;
+   font-family: var(--f-voz);
+   font-size: var(--titulo);
+   text-transform: uppercase;
+   letter-spacing: .015em;
+   color: var(--texto-3)
+}
+
+.salon-vacio span {
+   font-family: var(--f-ui);
+   font-size: 15px;
+   text-transform: none;
+   letter-spacing: 0
 }
 
 .salon-plano {
@@ -181,6 +232,47 @@
 @media (max-width: 600px) {
    .login__col .f-titulo {
       --titulo: 32px
+   }
+
+   /* Las pestañas bajan a la barra inferior, al alcance del pulgar. */
+   .f-nav__tabs {
+      display: none
+   }
+
+   .f-tabbar {
+      display: grid
+   }
+
+   .salon-sec {
+      padding: var(--s3) var(--s4)
+   }
+
+   .salon-comandas {
+      grid-template-columns: 1fr
+   }
+
+   .sh-salon .f-drawer {
+      width: 100%
+   }
+
+   /* La fila de reserva apila título, datos y acciones, en ese orden. */
+   .f-fila {
+      grid-template-columns: 1fr
+   }
+
+   .f-fila__s {
+      order: 2
+   }
+
+   .f-fila__acc {
+      grid-column: 1;
+      grid-row: auto;
+      justify-content: flex-start;
+      order: 3
+   }
+
+   .f-dos {
+      grid-template-columns: 1fr
    }
 }
 

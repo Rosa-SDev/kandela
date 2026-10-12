@@ -10,18 +10,11 @@ import { Titulo } from '../componentes/Titulo';
 import { Comanda } from '../objetos/Comanda';
 import { hora } from '../objetos/estadoPedido';
 import { Mesa } from '../objetos/Mesa';
-import { esErrorKandela, get, post } from '../nucleo/api';
+import { comoErrorKandela, get, post } from '../nucleo/api';
 import { useSesion } from '../nucleo/sesion';
 import { estadoDeMesa, type ClaveDeMesa } from './estadoDeMesa';
 
 type Filtro = 'todas' | ClaveDeMesa;
-
-function comoError(error: unknown): ErrorKandela {
-  if (esErrorKandela(error)) {
-    return error;
-  }
-  return { status: null, titulo: 'No se pudo completar la solicitud.', texto: '', campos: {} };
-}
 
 /**
  * El plano del salón: todas las mesas con lo que está pasando en cada una.
@@ -60,7 +53,7 @@ export function Plano() {
 
     if (deMesas.status === 'rejected' || dePedidos.status === 'rejected') {
       const fallo = deMesas.status === 'rejected' ? deMesas.reason : (dePedidos as PromiseRejectedResult).reason;
-      setErrorDelPlano(comoError(fallo));
+      setErrorDelPlano(comoErrorKandela(fallo));
       setMesas([]);
       setPedidos([]);
       setReservas([]);
@@ -73,7 +66,7 @@ export function Plano() {
     setPedidos(dePedidos.value);
 
     if (deReservas.status === 'rejected') {
-      setErrorDeReservas(comoError(deReservas.reason));
+      setErrorDeReservas(comoErrorKandela(deReservas.reason));
       setReservas([]);
     } else {
       setErrorDeReservas(null);
@@ -114,7 +107,7 @@ export function Plano() {
       const creado = await post<PedidoDTO>('/pedidos', { mesaId: mesa.id, meseroId: usuario.id });
       navegar(`/salon/pedido/${creado.id}`);
     } catch (error) {
-      setErrorDeApertura(comoError(error));
+      setErrorDeApertura(comoErrorKandela(error));
     } finally {
       setAbriendo(false);
     }
