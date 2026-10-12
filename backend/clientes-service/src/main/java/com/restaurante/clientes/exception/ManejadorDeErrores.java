@@ -25,6 +25,16 @@ public class ManejadorDeErrores {
         return Map.of("error", e.getMessage());
     }
 
+    /**
+     * Otro servicio (el salón) no respondió. Se distingue del 404 y del 409
+     * para que la interfaz pueda decir que el problema no está en los datos.
+     */
+    @ExceptionHandler(ServicioNoDisponibleException.class)
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    public Map<String, String> servicioNoDisponible(ServicioNoDisponibleException e) {
+        return Map.of("error", e.getMessage());
+    }
+
     @ExceptionHandler(HttpMessageNotReadableException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Map<String, String> jsonInvalido(HttpMessageNotReadableException e) {
