@@ -3,6 +3,7 @@ import type { EstadoReserva, MesaDTO, ReservaDTO } from '@compartido/api/tipos';
 import type { ErrorKandela } from '@compartido/api/errores';
 import { Aviso } from '../componentes/Aviso';
 import { Boton } from '../componentes/Boton';
+import { Dialogo } from '../componentes/Dialogo';
 import { Titulo } from '../componentes/Titulo';
 import { FilaReserva } from '../objetos/FilaReserva';
 import { esReservaVigente } from '../objetos/estadoReserva';
@@ -39,6 +40,8 @@ export function Reservas() {
   const [cambiando, setCambiando] = useState<number | null>(null);
   const [errorDeAccion, setErrorDeAccion] = useState<ErrorKandela | null>(null);
   const [hecho, setHecho] = useState<string | null>(null);
+  const [porCancelar, setPorCancelar] = useState<ReservaDTO | null>(null);
+  const [errorDelDialogo, setErrorDelDialogo] = useState<ErrorKandela | null>(null);
 
   // Nada de setState antes del await: dentro de un efecto eso encadena renders.
   const cargar = useCallback(async () => {
@@ -74,17 +77,21 @@ export function Reservas() {
   }
 
   /**
-   * Mueve la reserva al estado siguiente.
+   * Mueve la reserva al estado que se le pida y devuelve el fallo, si hubo.
+   *
+   * No muestra el error: quien llama decide dónde va, porque el de Confirmar
+   * se lee sobre la lista y el de Cancelar tiene que quedarse dentro del
+   * diálogo, junto al botón que lo provocó.
    *
    * La lista se actualiza con la reserva que devuelve el servidor y no con una
    * copia cambiada aquí: si el estado ya había cambiado por otro lado, lo que
    * manda es lo que el servidor diga. Mientras la petición va, los botones de
    * esa fila quedan bloqueados para no mandar el cambio dos veces.
    */
-  async function cambiarEstado(reserva: ReservaDTO, nuevoEstado: EstadoReserva) {
-    if (cambiando !== null) {
-      return;
-    }
+  async function cambiarEstado(
+    reserva: ReservaDTO,
+    nuevoEstado: EstadoReserva,
+  ): Promise<ErrorKandela | null> {
     setCambiando(reserva.id);
     setErrorDeAccion(null);
     setHecho(null);
@@ -94,11 +101,38 @@ export function Reservas() {
         anteriores.map((una) => (una.id === actualizada.id ? actualizada : una)),
       );
       setHecho(`Reserva de ${reserva.clienteNombre} ${HECHO[nuevoEstado]}.`);
+      return null;
     } catch (fallo) {
-      setErrorDeAccion(comoErrorKandela(fallo));
+      return comoErrorKandela(fallo);
     } finally {
       setCambiando(null);
     }
+  }
+
+  /** Confirmar y Cumplida: el fallo, si lo hay, se lee sobre la lista. */
+  async function avanzar(reserva: ReservaDTO, nuevoEstado: EstadoReserva) {
+    if (cambiando !== null) {
+      return;
+    }
+    setErrorDeAccion(await cambiarEstado(reserva, nuevoEstado));
+  }
+
+  /** El diálogo se queda abierto si el servidor rechaza la cancelación. */
+  async function confirmarLaCancelacion() {
+    if (!porCancelar || cambiando !== null) {
+      return;
+    }
+    const fallo = await cambiarEstado(porCancelar, 'CANCELADA');
+    if (fallo) {
+      setErrorDelDialogo(fallo);
+    } else {
+      setPorCancelar(null);
+    }
+  }
+
+  function pedirCancelar(reserva: ReservaDTO) {
+    setErrorDelDialogo(null);
+    setPorCancelar(reserva);
   }
 
   /** Lo que se puede hacer con una reserva depende de en qué estado está. */
@@ -114,7 +148,7 @@ export function Reservas() {
             texto="Confirmar"
             variante="tinta"
             disabled={bloqueada}
-            onClick={() => void cambiarEstado(reserva, 'CONFIRMADA')}
+            onClick={() => void avanzar(reserva, 'CONFIRMADA')}
           />
         ) : null}
         {reserva.estado === 'CONFIRMADA' ? (
@@ -122,9 +156,15 @@ export function Reservas() {
             texto="Cumplida"
             variante="tinta"
             disabled={bloqueada}
-            onClick={() => void cambiarEstado(reserva, 'CUMPLIDA')}
+            onClick={() => void avanzar(reserva, 'CUMPLIDA')}
           />
         ) : null}
+        <Boton
+          texto="Cancelar"
+          variante="baja"
+          disabled={bloqueada}
+          onClick={() => pedirCancelar(reserva)}
+        />
       </>
     );
   }
@@ -132,6 +172,19 @@ export function Reservas() {
   const numeros = numerosDeMesa(mesas);
   const enOrden = [...reservas].sort((una, otra) => una.fechaHora.localeCompare(otra.fechaHora));
   const vigentes = enOrden.filter((reserva) => esReservaVigente(reserva.estado)).length;
+
+  // Cancelar suelta la mesa en el plano; si la reserva no tenía mesa asignada,
+  // lo único que cambia es que queda en el historial.
+  const numeroPorCancelar =
+    porCancelar?.mesaId != null ? numeros.get(porCancelar.mesaId) : undefined;
+  const consecuencias = porCancelar
+    ? [
+        numeroPorCancelar != null
+          ? `La mesa ${numeroPorCancelar} deja de aparecer reservada.`
+          : 'La reserva queda en el historial como cancelada.',
+        'No se puede volver a activar: habría que registrar una nueva.',
+      ]
+    : [];
 
   return (
     <section className="salon-sec" aria-label="Reservas">
@@ -171,6 +224,26 @@ export function Reservas() {
             />
           ))}
         </div>
+      ) : null}
+
+      {porCancelar ? (
+        <Dialogo
+          tipo="Cambio de estado"
+          titulo={`¿Cancelar la reserva de ${porCancelar.clienteNombre}?`}
+          consecuencias={consecuencias}
+          error={
+            errorDelDialogo ? { t: errorDelDialogo.titulo, x: errorDelDialogo.texto } : undefined
+          }
+          confirmar={
+            <Boton
+              texto="Cancelar reserva"
+              variante="calor"
+              disabled={cambiando !== null}
+              onClick={() => void confirmarLaCancelacion()}
+            />
+          }
+          onCerrar={() => setPorCancelar(null)}
+        />
       ) : null}
     </section>
   );

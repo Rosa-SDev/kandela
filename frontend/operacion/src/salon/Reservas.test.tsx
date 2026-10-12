@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { MesaDTO, ReservaDTO } from '@compartido/api/tipos';
 import { Reservas } from './Reservas';
@@ -237,5 +237,108 @@ describe('los cambios de estado de la reserva', () => {
       await screen.findByText('No se puede pasar una reserva de PENDIENTE a CUMPLIDA.'),
     ).toBeInTheDocument();
     expect(screen.getByText('Pendiente')).toBeInTheDocument();
+  });
+});
+
+describe('cancelar una reserva', () => {
+  async function abrirElDialogoDe(nombre: string) {
+    await screen.findByText(nombre);
+    const fila = [...document.querySelectorAll('.f-fila')].find((una) =>
+      una.textContent?.includes(nombre),
+    ) as HTMLElement;
+    fireEvent.click(within(fila).getByRole('button', { name: 'Cancelar' }));
+    return screen.findByRole('alertdialog');
+  }
+
+  it('ofrece cancelar en las vigentes, nunca en las cerradas', async () => {
+    simularBackend({ reservas: () => json([DE_MARCELA, DE_ANA, CANCELADA]) });
+    render(<Reservas />);
+
+    await screen.findByText('Pedro Díaz');
+    expect(screen.getAllByRole('button', { name: 'Cancelar' })).toHaveLength(2);
+  });
+
+  it('no cancela nada hasta que se confirma en el dialogo', async () => {
+    simularBackend({ reservas: () => json([DE_ANA]) });
+    render(<Reservas />);
+
+    const dialogo = await abrirElDialogoDe('Ana Torres');
+
+    expect(within(dialogo).getByText('¿Cancelar la reserva de Ana Torres?')).toBeInTheDocument();
+    expect(
+      (fetch as unknown as { mock: { calls: [string, RequestInit?][] } }).mock.calls.filter(
+        ([, opciones]) => opciones?.method === 'PATCH',
+      ),
+    ).toHaveLength(0);
+  });
+
+  it('dice que la mesa deja de aparecer reservada', async () => {
+    simularBackend({ reservas: () => json([DE_MARCELA]) });
+    render(<Reservas />);
+
+    const dialogo = await abrirElDialogoDe('Marcela Gómez');
+
+    expect(
+      within(dialogo).getByText('La mesa 4 deja de aparecer reservada.'),
+    ).toBeInTheDocument();
+    expect(
+      within(dialogo).getByText(/habría que registrar una nueva/),
+    ).toBeInTheDocument();
+  });
+
+  it('cuando la reserva no tiene mesa, dice que queda en el historial', async () => {
+    simularBackend({ reservas: () => json([{ ...DE_ANA, mesaId: null }]) });
+    render(<Reservas />);
+
+    const dialogo = await abrirElDialogoDe('Ana Torres');
+
+    expect(
+      within(dialogo).getByText('La reserva queda en el historial como cancelada.'),
+    ).toBeInTheDocument();
+  });
+
+  it('volver cierra el dialogo sin tocar la reserva', async () => {
+    simularBackend({ reservas: () => json([DE_ANA]) });
+    render(<Reservas />);
+
+    const dialogo = await abrirElDialogoDe('Ana Torres');
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Volver' }));
+
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(screen.getByText('Pendiente')).toBeInTheDocument();
+  });
+
+  it('confirmar cancela la reserva y cierra el dialogo', async () => {
+    simularBackend({
+      reservas: () => json([DE_ANA]),
+      cambio: () => json({ ...DE_ANA, estado: 'CANCELADA' }),
+    });
+    render(<Reservas />);
+
+    const dialogo = await abrirElDialogoDe('Ana Torres');
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Cancelar reserva' }));
+
+    expect(await screen.findByText('Reserva de Ana Torres cancelada.')).toBeInTheDocument();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(screen.getByText('Cancelada')).toBeInTheDocument();
+  });
+
+  it('si el servidor la rechaza, el mensaje se queda dentro del dialogo', async () => {
+    simularBackend({
+      reservas: () => json([DE_ANA]),
+      cambio: () => json({ error: 'No se puede pasar una reserva de CANCELADA a CANCELADA.' }, 409),
+    });
+    render(<Reservas />);
+
+    const dialogo = await abrirElDialogoDe('Ana Torres');
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Cancelar reserva' }));
+
+    const abierto = await screen.findByRole('alertdialog');
+    expect(
+      within(abierto).getByText('No se puede pasar una reserva de CANCELADA a CANCELADA.'),
+    ).toBeInTheDocument();
+    expect(
+      within(abierto).queryByRole('button', { name: 'Cancelar reserva' }),
+    ).not.toBeInTheDocument();
   });
 });
