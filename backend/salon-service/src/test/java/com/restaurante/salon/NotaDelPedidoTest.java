@@ -1,17 +1,22 @@
 package com.restaurante.salon;
 
 import com.jayway.jsonpath.JsonPath;
+import com.restaurante.salon.cliente.UsuarioRemoto;
+import com.restaurante.salon.cliente.UsuariosClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -29,11 +34,19 @@ class NotaDelPedidoTest {
     @Autowired
     private WebApplicationContext contextoWeb;
 
+    @MockitoBean
+    private UsuariosClient usuariosClient;
+
     private MockMvc mockMvc;
 
     @BeforeEach
     void prepararMockMvc() {
         this.mockMvc = MockMvcBuilders.webAppContextSetup(this.contextoWeb).build();
+
+        // El pedido se crea validando el mesero contra usuarios-service. Aquí se
+        // simula esa consulta: lo que se prueba es el salón, no la llamada remota.
+        given(usuariosClient.obtener(anyLong())).willAnswer(invocacion ->
+                new UsuarioRemoto(invocacion.getArgument(0), "Mesero Demo", "mesero@raizysazon.co", "MESERO", true));
     }
 
     @Test
