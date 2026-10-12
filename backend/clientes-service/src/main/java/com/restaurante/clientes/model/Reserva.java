@@ -19,10 +19,10 @@ import jakarta.persistence.Table;
  * en salon-service y Mesero en usuarios-service, cada uno con su propia base
  * de datos. No hay relación JPA posible entre servicios distintos.
  *
- * Por lo mismo, confirmar()/cancelar() aquí solo cambian el estado propio de
- * la reserva — el original también tocaba el estado de la Mesa, pero eso ya
- * no es posible sin el objeto real. Validar mesa/capacidad queda fuera del
- * Avance 1 (decisión D8 del contrato).
+ * Por lo mismo, confirmar() y cancelar() aquí solo cambian el estado propio
+ * de la reserva: el estado de la mesa lo lleva el salón y desde aquí no se
+ * puede tocar. Que la mesa alcance para la cantidad de personas se
+ * comprueba al crear la reserva, preguntándole al salón por su capacidad.
  */
 @Entity
 @Table(name = "reservas")
