@@ -91,6 +91,13 @@ describe('las reservas del salón', () => {
     expect(filas[2].textContent).toContain('Luis Ramírez');
   });
 
+  it('dice vigente en singular cuando solo queda una', async () => {
+    simularBackend({ reservas: () => json([DE_MARCELA, CANCELADA]) });
+    render(<Reservas />);
+
+    expect(await screen.findByText('(1 vigente)')).toBeInTheDocument();
+  });
+
   it('cuenta en el parentesis solo las reservas vigentes', async () => {
     simularBackend({ reservas: () => json([DE_MARCELA, DE_ANA, CANCELADA]) });
     render(<Reservas />);

@@ -189,7 +189,14 @@ export function Reservas() {
   return (
     <section className="salon-sec" aria-label="Reservas">
       <div className="sh-cab">
-        <Titulo texto="Reservas" par={cargando || error ? undefined : `${vigentes} vigentes`} />
+        <Titulo
+          texto="Reservas"
+          par={
+            cargando || error
+              ? undefined
+              : `${vigentes} ${vigentes === 1 ? 'vigente' : 'vigentes'}`
+          }
+        />
       </div>
 
       {error ? (
