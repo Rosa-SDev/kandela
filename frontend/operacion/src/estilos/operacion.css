@@ -64,6 +64,76 @@
    color: var(--texto-2)
 }
 
+/* ---- Salón · Mesero ---- */
+/* Mínimo de texto del salón: 14 px, aunque la pieza sea de otra capa. */
+.sh-salon .f-estado,
+.sh-salon .f-plato__d,
+.sh-salon .f-comanda__nota label,
+.sh-salon .f-linea__n small {
+   font-size: 14px
+}
+
+.sh-cab {
+   display: flex;
+   flex-wrap: wrap;
+   align-items: flex-end;
+   justify-content: space-between;
+   gap: var(--s3) var(--s6)
+}
+
+.salon-plano {
+   flex: 1;
+   min-height: 0;
+   display: grid;
+   grid-template-columns: minmax(0, 1fr) 380px
+}
+
+.salon-mapa {
+   padding: var(--s6);
+   display: flex;
+   flex-direction: column;
+   gap: var(--s6);
+   min-height: 0;
+   overflow: auto
+}
+
+.salon-mapa__grid {
+   display: flex;
+   flex-wrap: wrap;
+   align-items: flex-end;
+   gap: calc(var(--u)*2.2) calc(var(--u)*2.6);
+   padding: calc(var(--u)*1.2)
+}
+
+.salon-detalle {
+   border-left: 1px solid var(--linea);
+   display: flex;
+   flex-direction: column;
+   min-height: 0;
+   padding: var(--s6) var(--s5);
+   gap: var(--s4);
+   overflow: auto
+}
+
+.salon-detalle__cerrar {
+   display: none
+}
+
+.salon-detalle__estado {
+   display: flex;
+   flex-wrap: wrap;
+   gap: var(--s2) var(--s4)
+}
+
+.salon-detalle p {
+   margin: 0;
+   color: var(--texto-2)
+}
+
+.salon-detalle .f-comanda {
+   flex: none
+}
+
 /* ---- Móvil ---- */
 @media (max-width: 600px) {
    .login__col .f-titulo {

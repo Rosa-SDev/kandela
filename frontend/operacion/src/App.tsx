@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router';
 import { Login } from './Login';
 import { RutaConRol } from './nucleo/RutaConRol';
+import { SalonShell } from './salon/SalonShell';
 import { SesionProveedor, useSesion } from './nucleo/sesion';
 
 function Inicio() {
@@ -9,10 +10,6 @@ function Inicio() {
   if (usuario?.rol === 'CAJERO') return <Navigate to="/caja" replace />;
   if (usuario?.rol === 'COCINERO') return <Navigate to="/cocina" replace />;
   return <Navigate to="/login" replace />;
-}
-
-function SalonShell() {
-  return <div className="sh sh-salon" data-densidad="tactil" data-superficie="arcilla" />;
 }
 
 function CajaShell() {
