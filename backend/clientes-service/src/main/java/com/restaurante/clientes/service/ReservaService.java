@@ -6,6 +6,8 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
+import com.restaurante.clientes.cliente.MesaRemota;
+import com.restaurante.clientes.cliente.SalonClient;
 import com.restaurante.clientes.dto.CrearReservaDTO;
 import com.restaurante.clientes.dto.ReservaDTO;
 import com.restaurante.clientes.exception.NoEncontradoException;
@@ -21,10 +23,13 @@ public class ReservaService {
 
     private final ReservaRepository reservaRepository;
     private final ClienteRepository clienteRepository;
+    private final SalonClient salonClient;
 
-    public ReservaService(ReservaRepository reservaRepository, ClienteRepository clienteRepository) {
+    public ReservaService(ReservaRepository reservaRepository, ClienteRepository clienteRepository,
+            SalonClient salonClient) {
         this.reservaRepository = reservaRepository;
         this.clienteRepository = clienteRepository;
+        this.salonClient = salonClient;
     }
 
     public List<ReservaDTO> listar(EstadoReserva estado) {
@@ -51,8 +56,9 @@ public class ReservaService {
             throw new IllegalArgumentException("No se puede reservar para una fecha que ya pasó.");
         }
 
-        // TODO Avance 2: validar que numPersonas no supere la capacidad de mesaId
-        // (requiere consultar salon-service; fuera de alcance del Avance 1)
+        if (datos.mesaId() != null) {
+            validarCapacidad(datos.mesaId(), datos.numPersonas());
+        }
 
         Reserva reserva = new Reserva(datos.fechaHora(), datos.numPersonas(), cliente,
                 datos.mesaId(), datos.meseroId());
@@ -88,6 +94,20 @@ public class ReservaService {
 
     public void eliminar(Long id) {
         reservaRepository.delete(buscarEntidad(id));
+    }
+
+    /**
+     * Consulta la mesa en el salón y comprueba que le quepan las personas.
+     *
+     * Si la mesa no existe, SalonClient ya lanza el 404; si el salón no
+     * responde, lanza el 503. Aquí solo queda el 409 de capacidad.
+     */
+    private void validarCapacidad(Long mesaId, int numPersonas) {
+        MesaRemota mesa = salonClient.obtenerMesa(mesaId);
+        if (numPersonas > mesa.capacidad()) {
+            throw new ConflictoException("La mesa " + mesa.numero() + " no alcanza para " + numPersonas
+                    + " personas. Su capacidad es de " + mesa.capacidad() + ".");
+        }
     }
 
     private Reserva buscarEntidad(Long id) {
