@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { MesaDTO, PedidoDTO, ReservaDTO } from '@compartido/api/tipos';
+import { SesionProveedor } from '../nucleo/sesion';
 import { Plano } from './Plano';
 
 const MESAS: MesaDTO[] = [
@@ -42,10 +43,37 @@ function reservaDeHoy(): ReservaDTO {
   };
 }
 
+const MESERO = {
+  id: 2,
+  nombre: 'Carlos Rojas',
+  correo: 'carlos.rojas@raizysazon.co',
+  rol: 'MESERO',
+  activo: true,
+};
+
+/** El plano necesita saber quién tiene la sesión para abrir pedidos a su nombre. */
+function pintarPlano() {
+  sessionStorage.setItem('kandela.sesion', JSON.stringify(MESERO));
+  return render(
+    <SesionProveedor>
+      <Plano />
+    </SesionProveedor>,
+  );
+}
+
+/** Los cuerpos enviados a una ruta, ya convertidos desde JSON. */
+function cuerposEnviadosA(ruta: string): unknown[] {
+  const llamadas = (fetch as unknown as { mock: { calls: [string, RequestInit?][] } }).mock.calls;
+  return llamadas
+    .filter(([url, opciones]) => url === ruta && opciones?.method === 'POST')
+    .map(([, opciones]) => JSON.parse(String(opciones?.body)));
+}
+
 interface Respuestas {
   mesas?: () => Response | Promise<Response>;
   pedidos?: () => Response | Promise<Response>;
   reservas?: () => Response | Promise<Response>;
+  crearPedido?: () => Response | Promise<Response>;
 }
 
 function json(cuerpo: unknown, status = 200): Response {
@@ -56,7 +84,10 @@ function json(cuerpo: unknown, status = 200): Response {
 function simularBackend(respuestas: Respuestas) {
   vi.stubGlobal(
     'fetch',
-    vi.fn((url: string) => {
+    vi.fn((url: string, opciones?: RequestInit) => {
+      if (url === '/api/pedidos' && opciones?.method === 'POST') {
+        return Promise.resolve((respuestas.crearPedido ?? (() => json({ id: 99 }, 201)))());
+      }
       if (url.startsWith('/api/mesas')) return Promise.resolve((respuestas.mesas ?? (() => json(MESAS)))());
       if (url.startsWith('/api/pedidos'))
         return Promise.resolve((respuestas.pedidos ?? (() => json([PEDIDO_EN_COCINA])))());
@@ -70,11 +101,12 @@ function simularBackend(respuestas: Respuestas) {
 describe('Plano', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    sessionStorage.clear();
   });
 
   it('pinta cada mesa con el estado que le corresponde', async () => {
     simularBackend({});
-    render(<Plano />);
+    pintarPlano();
 
     expect(await screen.findByLabelText('Mesa 1: ocupada, en cocina')).toBeInTheDocument();
     expect(screen.getByLabelText('Mesa 3: libre')).toBeInTheDocument();
@@ -83,7 +115,7 @@ describe('Plano', () => {
 
   it('cuenta las mesas de cada filtro', async () => {
     simularBackend({});
-    render(<Plano />);
+    pintarPlano();
 
     expect(await screen.findByText('Todas (3)')).toBeInTheDocument();
     expect(screen.getByText('Libres (1)')).toBeInTheDocument();
@@ -93,7 +125,7 @@ describe('Plano', () => {
 
   it('las tres consultas salen a la vez', async () => {
     simularBackend({});
-    render(<Plano />);
+    pintarPlano();
 
     await screen.findByLabelText('Mesa 3: libre');
     const pedidas = (fetch as unknown as { mock: { calls: string[][] } }).mock.calls.map((c) => c[0]);
@@ -106,7 +138,7 @@ describe('Plano', () => {
     simularBackend({
       reservas: () => json({ error: 'El salón no está disponible en este momento.' }, 503),
     });
-    render(<Plano />);
+    pintarPlano();
 
     expect(await screen.findByText('El salón no está disponible en este momento.')).toBeInTheDocument();
     expect(screen.getByText('El plano se muestra sin las mesas reservadas.')).toBeInTheDocument();
@@ -127,7 +159,7 @@ describe('Plano', () => {
           500,
         ),
     });
-    render(<Plano />);
+    pintarPlano();
 
     expect(await screen.findByText('El servicio no está disponible en este momento.')).toBeInTheDocument();
     expect(screen.queryByLabelText('Mesa 3: libre')).not.toBeInTheDocument();
@@ -145,7 +177,7 @@ describe('Plano', () => {
         return json(MESAS);
       },
     });
-    render(<Plano />);
+    pintarPlano();
 
     fireEvent.click(await screen.findByText('Reintentar'));
 
@@ -154,7 +186,7 @@ describe('Plano', () => {
 
   it('al tocar una mesa libre el detalle dice que no tiene pedido', async () => {
     simularBackend({});
-    render(<Plano />);
+    pintarPlano();
 
     fireEvent.click(await screen.findByLabelText('Mesa 3: libre'));
 
@@ -164,7 +196,7 @@ describe('Plano', () => {
 
   it('al tocar una mesa reservada el detalle dice quien, a que hora y cuantos', async () => {
     simularBackend({});
-    render(<Plano />);
+    pintarPlano();
 
     fireEvent.click(await screen.findByLabelText('Mesa 4: reservada a las 19:00'));
 
@@ -176,7 +208,7 @@ describe('Plano', () => {
 
   it('al tocar una mesa ocupada el detalle muestra su comanda', async () => {
     simularBackend({});
-    render(<Plano />);
+    pintarPlano();
 
     fireEvent.click(await screen.findByLabelText('Mesa 1: ocupada, en cocina'));
 
@@ -184,9 +216,110 @@ describe('Plano', () => {
     expect(screen.getAllByText('Bandeja paisa').length).toBeGreaterThan(0);
   });
 
+  it('abrir un pedido manda la mesa elegida y el mesero en sesion', async () => {
+    simularBackend({});
+    pintarPlano();
+
+    const libre = MESAS[1];
+    fireEvent.click(await screen.findByLabelText(`Mesa ${libre.numero}: libre`));
+    fireEvent.click(screen.getByText('Abrir pedido'));
+
+    await waitFor(() => expect(cuerposEnviadosA('/api/pedidos')).toHaveLength(1));
+    expect(cuerposEnviadosA('/api/pedidos')[0]).toEqual({
+      mesaId: libre.id,
+      meseroId: MESERO.id,
+    });
+  });
+
+  it('una mesa reservada tambien se puede abrir', async () => {
+    simularBackend({});
+    pintarPlano();
+
+    fireEvent.click(await screen.findByLabelText('Mesa 4: reservada a las 19:00'));
+    fireEvent.click(screen.getByText('Abrir pedido'));
+
+    await waitFor(() => expect(cuerposEnviadosA('/api/pedidos')).toHaveLength(1));
+    expect(cuerposEnviadosA('/api/pedidos')[0]).toMatchObject({ mesaId: 4 });
+  });
+
+  it('una mesa ocupada no ofrece abrir pedido', async () => {
+    simularBackend({});
+    pintarPlano();
+
+    fireEvent.click(await screen.findByLabelText('Mesa 1: ocupada, en cocina'));
+
+    expect(screen.queryByText('Abrir pedido')).not.toBeInTheDocument();
+  });
+
+  it('dos toques seguidos no abren dos pedidos', async () => {
+    let soltar: (r: Response) => void = () => {};
+    simularBackend({
+      crearPedido: () =>
+        new Promise<Response>((resolver) => {
+          soltar = resolver;
+        }),
+    });
+    pintarPlano();
+
+    fireEvent.click(await screen.findByLabelText('Mesa 3: libre'));
+    const boton = screen.getByText('Abrir pedido');
+    fireEvent.click(boton);
+    await waitFor(() => expect(boton).toBeDisabled());
+    fireEvent.click(boton);
+
+    soltar(json({ id: 99 }, 201));
+    await waitFor(() => expect(cuerposEnviadosA('/api/pedidos')).toHaveLength(1));
+  });
+
+  it('si la mesa ya esta ocupada se muestra el conflicto del servidor', async () => {
+    simularBackend({
+      crearPedido: () => json({ error: 'La mesa 3 ya está ocupada por otro pedido.' }, 409),
+    });
+    pintarPlano();
+
+    fireEvent.click(await screen.findByLabelText('Mesa 3: libre'));
+    fireEvent.click(screen.getByText('Abrir pedido'));
+
+    expect(
+      await screen.findByText('La mesa 3 ya está ocupada por otro pedido.'),
+    ).toBeInTheDocument();
+  });
+
+  it('si el servicio de usuarios no responde se avisa', async () => {
+    simularBackend({
+      crearPedido: () =>
+        json({ error: 'El servicio de usuarios no está disponible en este momento.' }, 503),
+    });
+    pintarPlano();
+
+    fireEvent.click(await screen.findByLabelText('Mesa 3: libre'));
+    fireEvent.click(screen.getByText('Abrir pedido'));
+
+    expect(
+      await screen.findByText('El servicio de usuarios no está disponible en este momento.'),
+    ).toBeInTheDocument();
+  });
+
+  it('el aviso de error se borra al elegir otra mesa', async () => {
+    simularBackend({
+      crearPedido: () => json({ error: 'La mesa 3 ya está ocupada por otro pedido.' }, 409),
+    });
+    pintarPlano();
+
+    fireEvent.click(await screen.findByLabelText('Mesa 3: libre'));
+    fireEvent.click(screen.getByText('Abrir pedido'));
+    await screen.findByText('La mesa 3 ya está ocupada por otro pedido.');
+
+    fireEvent.click(screen.getByLabelText('Mesa 4: reservada a las 19:00'));
+
+    expect(
+      screen.queryByText('La mesa 3 ya está ocupada por otro pedido.'),
+    ).not.toBeInTheDocument();
+  });
+
   it('sin mesa seleccionada el detalle esta vacio', async () => {
     simularBackend({});
-    render(<Plano />);
+    pintarPlano();
 
     await screen.findByLabelText('Mesa 3: libre');
     expect(screen.getByLabelText('Detalle de la mesa')).toBeEmptyDOMElement();

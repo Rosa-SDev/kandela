@@ -9,7 +9,8 @@ import { Titulo } from '../componentes/Titulo';
 import { Comanda } from '../objetos/Comanda';
 import { hora } from '../objetos/estadoPedido';
 import { Mesa } from '../objetos/Mesa';
-import { esErrorKandela, get } from '../nucleo/api';
+import { esErrorKandela, get, post } from '../nucleo/api';
+import { useSesion } from '../nucleo/sesion';
 import { estadoDeMesa, type ClaveDeMesa } from './estadoDeMesa';
 
 type Filtro = 'todas' | ClaveDeMesa;
@@ -41,6 +42,9 @@ export function Plano() {
   const [hoy, setHoy] = useState(() => new Date());
   const [filtro, setFiltro] = useState<Filtro>('todas');
   const [seleccionada, setSeleccionada] = useState<number | null>(null);
+  const [abriendo, setAbriendo] = useState(false);
+  const [errorDeApertura, setErrorDeApertura] = useState<ErrorKandela | null>(null);
+  const { usuario } = useSesion();
 
   // Nada de setState antes del await: dentro de un efecto eso encadena renders.
   const cargar = useCallback(async () => {
@@ -84,6 +88,35 @@ export function Plano() {
     // oxlint-disable-next-line react/set-state-in-effect
     void cargar();
   }, [cargar]);
+
+  /** Al cambiar de mesa, el error de la anterior deja de tener sentido. */
+  function seleccionar(mesa: MesaDTO) {
+    setSeleccionada(mesa.id);
+    setErrorDeApertura(null);
+  }
+
+  /**
+   * Abre un pedido en esa mesa a nombre de quien tiene la sesión.
+   *
+   * Mientras la petición está en camino el botón queda bloqueado: dos toques
+   * seguidos abrirían dos pedidos en la misma mesa, y el segundo chocaría con
+   * el primero.
+   */
+  async function abrirPedido(mesa: MesaDTO) {
+    if (abriendo || !usuario) {
+      return;
+    }
+    setAbriendo(true);
+    setErrorDeApertura(null);
+    try {
+      await post<PedidoDTO>('/pedidos', { mesaId: mesa.id, meseroId: usuario.id });
+      await cargar();
+    } catch (error) {
+      setErrorDeApertura(comoError(error));
+    } finally {
+      setAbriendo(false);
+    }
+  }
 
   function reintentar() {
     setCargando(true);
@@ -147,23 +180,43 @@ export function Plano() {
               estado={estado}
               seleccionada={mesa.id === seleccionada}
               filtrada={filtro !== 'todas' && estado.clave !== filtro}
-              onSeleccionar={() => setSeleccionada(mesa.id)}
+              onSeleccionar={seleccionar}
             />
           ))}
         </div>
       </section>
 
       <aside className="salon-detalle" aria-label="Detalle de la mesa">
-        {elegida ? <DetalleDeMesa mesa={elegida.mesa} estado={elegida.estado} /> : null}
+        {elegida ? (
+          <DetalleDeMesa
+            mesa={elegida.mesa}
+            estado={elegida.estado}
+            abriendo={abriendo}
+            error={errorDeApertura}
+            onAbrirPedido={abrirPedido}
+          />
+        ) : null}
       </aside>
     </div>
   );
 }
 
-type DetalleProps = { mesa: MesaDTO; estado: ReturnType<typeof estadoDeMesa> };
+interface DetalleProps {
+  mesa: MesaDTO;
+  estado: ReturnType<typeof estadoDeMesa>;
+  abriendo: boolean;
+  error: ErrorKandela | null;
+  onAbrirPedido: (mesa: MesaDTO) => void;
+}
 
-/** Lo que se ve al tocar una mesa: la comanda si hay pedido, o quién la reservó. */
-function DetalleDeMesa({ mesa, estado }: DetalleProps) {
+/**
+ * Lo que se ve al tocar una mesa: la comanda si hay pedido, o quién la reservó.
+ *
+ * Una mesa reservada también acepta un pedido —el cliente llegó— pero el botón
+ * va en tinta y no en ladrillo: abrirlo ahí es una decisión más deliberada que
+ * sentar a alguien en una mesa libre.
+ */
+function DetalleDeMesa({ mesa, estado, abriendo, error, onAbrirPedido }: DetalleProps) {
   return (
     <>
       <Titulo texto={`Mesa ${mesa.numero}`} par={`${mesa.capacidad} personas`} nivel={2} />
@@ -188,6 +241,18 @@ function DetalleDeMesa({ mesa, estado }: DetalleProps) {
           </div>
           <p>Sin pedido abierto.</p>
         </>
+      ) : null}
+
+      {error ? <Aviso tono="err" titulo={error.titulo} texto={error.texto} /> : null}
+
+      {estado.clave !== 'ocupada' ? (
+        <Boton
+          texto="Abrir pedido"
+          variante={estado.clave === 'libre' ? 'calor' : 'tinta'}
+          ancho
+          disabled={abriendo}
+          onClick={() => onAbrirPedido(mesa)}
+        />
       ) : null}
     </>
   );
