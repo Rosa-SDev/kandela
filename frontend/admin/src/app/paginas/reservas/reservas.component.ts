@@ -1,6 +1,6 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
-import { catchError, forkJoin, of } from 'rxjs';
+import { catchError, forkJoin, Observable, of } from 'rxjs';
 import { ClienteDTO, EstadoReserva, MesaDTO, ReservaDTO, UsuarioDTO } from '@compartido/api/tipos';
 import { ApiService } from '../../nucleo/api.service';
 import { TituloComponent } from '../../componentes/titulo.component';
@@ -10,6 +10,7 @@ import { AvisoComponent } from '../../componentes/aviso.component';
 import { EstadoComponent } from '../../componentes/estado.component';
 import { BotonComponent } from '../../componentes/boton.component';
 import { DrawerComponent } from '../../componentes/drawer.component';
+import { DialogoComponent } from '../../componentes/dialogo.component';
 
 type Filtro = 'TODAS' | 'PENDIENTES' | 'CONFIRMADAS' | 'CERRADAS';
 
@@ -51,7 +52,8 @@ const ESTADOS: Record<EstadoReserva, { glifo: string; texto: string; tono: '' | 
     AvisoComponent,
     EstadoComponent,
     BotonComponent,
-    DrawerComponent
+    DrawerComponent,
+    DialogoComponent
   ],
   template: `
     <div class="adm-cab">
@@ -70,7 +72,7 @@ const ESTADOS: Record<EstadoReserva, { glifo: string; texto: string; tono: '' | 
     }
 
     <app-tabla
-      [columnas]="['Fecha', 'Hora', 'Cliente', 'Personas', 'Mesa', 'Mesero', 'Estado']"
+      [columnas]="['Fecha', 'Hora', 'Cliente', 'Personas', 'Mesa', 'Mesero', 'Estado', '']"
       [vacia]="!cargando() && visibles().length === 0"
       mensajeVacia="SIN RESERVAS">
       @for (r of visibles(); track r.id) {
@@ -87,6 +89,18 @@ const ESTADOS: Record<EstadoReserva, { glifo: string; texto: string; tono: '' | 
               [texto]="estados[r.estado].texto"
               [tono]="estados[r.estado].tono">
             </app-estado>
+          </td>
+          <td class="acc">
+            @if (r.estado === 'PENDIENTE') {
+              <app-boton variante="texto" (accion)="cambiarEstado(r, 'CONFIRMADA')">Confirmar</app-boton>
+            }
+            @if (r.estado === 'CONFIRMADA') {
+              <app-boton variante="texto" (accion)="cambiarEstado(r, 'CUMPLIDA')">Cumplida</app-boton>
+            }
+            @if (r.estado === 'PENDIENTE' || r.estado === 'CONFIRMADA') {
+              <app-boton variante="texto-baja" (accion)="pedir('cancelar', r)">Cancelar</app-boton>
+            }
+            <app-boton variante="texto-baja" (accion)="pedir('eliminar', r)">Eliminar</app-boton>
           </td>
         </tr>
       }
@@ -172,6 +186,39 @@ const ESTADOS: Record<EstadoReserva, { glifo: string; texto: string; tono: '' | 
         </app-boton>
       </app-drawer>
     }
+
+    @if (dialogo(); as d) {
+      @if (d.accion === 'cancelar') {
+        <app-dialogo
+          [titulo]="'¿Cancelar la reserva de ' + d.reserva.clienteNombre + '?'"
+          tipo="Cambio de estado"
+          (cerrar)="cerrarDialogo()">
+          <ul>
+            <li>Queda en el historial como cancelada.</li>
+            <li>Si el cliente vuelve a llamar, se registra una reserva nueva.</li>
+          </ul>
+          <app-boton pie variante="tinta" (accion)="cerrarDialogo()">Volver</app-boton>
+          <app-boton pie variante="calor" [disabled]="trabajando()" (accion)="confirmarDialogo()">
+            Cancelar reserva
+          </app-boton>
+        </app-dialogo>
+      } @else {
+        <app-dialogo
+          [titulo]="'¿Eliminar la reserva de ' + d.reserva.clienteNombre + '?'"
+          tipo="Acción irreversible"
+          [esDestructivo]="true"
+          (cerrar)="cerrarDialogo()">
+          <ul>
+            <li>Se borra del todo: no queda en el historial.</li>
+            <li>Si el cliente solo avisó que no viene, use «Cancelar».</li>
+          </ul>
+          <app-boton pie variante="tinta" (accion)="cerrarDialogo()">Volver</app-boton>
+          <app-boton pie variante="calor" [disabled]="trabajando()" (accion)="confirmarDialogo()">
+            Eliminar reserva
+          </app-boton>
+        </app-dialogo>
+      }
+    }
   `
 })
 export class ReservasComponent implements OnInit {
@@ -189,6 +236,9 @@ export class ReservasComponent implements OnInit {
   guardando = signal(false);
   resumen = signal<{ titulo: string; texto: string } | null>(null);
   errorMesaSrv = signal<string | null>(null);
+
+  dialogo = signal<{ accion: 'cancelar' | 'eliminar'; reserva: ReservaDTO } | null>(null);
+  trabajando = signal(false);
 
   formulario = this.fb.nonNullable.group(
     {
@@ -328,6 +378,60 @@ export class ReservasComponent implements OnInit {
           }
         }
       });
+  }
+
+  /** Confirmar y Cumplida se aplican de una vez; no borran nada. */
+  cambiarEstado(reserva: ReservaDTO, nuevoEstado: EstadoReserva) {
+    this.exito.set(null);
+    this.error.set(null);
+    this.api.patch<ReservaDTO>(`/api/reservas/${reserva.id}/estado`, { nuevoEstado }).subscribe({
+      next: () => {
+        const texto = nuevoEstado === 'CONFIRMADA' ? 'confirmada' : 'marcada como cumplida';
+        this.resaltadoId.set(reserva.id);
+        this.exito.set(`Reserva de ${reserva.clienteNombre} ${texto}.`);
+        this.cargar();
+      },
+      error: (err) => this.error.set(err.titulo)
+    });
+  }
+
+  pedir(accion: 'cancelar' | 'eliminar', reserva: ReservaDTO) {
+    this.exito.set(null);
+    this.error.set(null);
+    this.dialogo.set({ accion, reserva });
+  }
+
+  cerrarDialogo() {
+    this.dialogo.set(null);
+  }
+
+  confirmarDialogo() {
+    const d = this.dialogo();
+    if (!d || this.trabajando()) {
+      return;
+    }
+    this.trabajando.set(true);
+    const peticion: Observable<unknown> =
+      d.accion === 'cancelar'
+        ? this.api.patch<ReservaDTO>(`/api/reservas/${d.reserva.id}/estado`, { nuevoEstado: 'CANCELADA' })
+        : this.api.delete<void>(`/api/reservas/${d.reserva.id}`);
+
+    peticion.subscribe({
+      next: () => {
+        this.trabajando.set(false);
+        this.dialogo.set(null);
+        this.resaltadoId.set(d.accion === 'cancelar' ? d.reserva.id : null);
+        this.exito.set(
+          `Reserva de ${d.reserva.clienteNombre} ${d.accion === 'cancelar' ? 'cancelada' : 'eliminada'}.`
+        );
+        this.cargar();
+      },
+      error: (err) => {
+        this.trabajando.set(false);
+        this.dialogo.set(null);
+        this.error.set(err.titulo);
+      }
+    });
   }
 
   /** «Hoy» si es el día de hoy; si no, «14 oct». */
