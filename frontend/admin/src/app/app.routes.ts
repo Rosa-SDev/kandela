@@ -3,6 +3,7 @@ import { rolGuard } from './nucleo/rol.guard';
 import { AdminShellComponent } from './shell/admin-shell.component';
 import { LoginComponent } from './acceso/login.component';
 import { UsuariosComponent } from './paginas/usuarios/usuarios.component';
+import { ClientesComponent } from './paginas/clientes/clientes.component';
 
 // Componentes falsos para que no falle la compilación mientras los demás hacen sus pantallas
 import { Component } from '@angular/core';
@@ -24,7 +25,7 @@ export const routes: Routes = [
       { path: 'operacion', redirectTo: 'operacion/mesas', pathMatch: 'full' },
       
       { path: 'carta', component: DummyComponent },
-      { path: 'clientes', component: DummyComponent },
+      { path: 'clientes', component: ClientesComponent },
       { path: 'facturas', component: DummyComponent },
       { path: 'usuarios', component: UsuariosComponent },
       
