@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { MesaDTO, ReservaDTO } from '@compartido/api/tipos';
+import type { ClienteDTO, MesaDTO, ReservaDTO, UsuarioDTO } from '@compartido/api/tipos';
+import { SesionProveedor } from '../nucleo/sesion';
 import { Reservas } from './Reservas';
 
 const MESAS: MesaDTO[] = [
@@ -52,13 +53,28 @@ function json(cuerpo: unknown, status = 200): Response {
   return new Response(JSON.stringify(cuerpo), { status });
 }
 
+const CLIENTES: ClienteDTO[] = [
+  { id: 1, nombre: 'Ana Torres', documento: '1001234567', telefono: '3001234567' },
+  { id: 3, nombre: 'Marcela Gómez', documento: '1009988776', telefono: null },
+];
+
+const MESEROS: UsuarioDTO[] = [
+  { id: 2, nombre: 'Carlos Rojas', correo: 'carlos.rojas@raizysazon.co', rol: 'MESERO', activo: true },
+  { id: 3, nombre: 'Andrea Pérez', correo: 'andrea.perez@raizysazon.co', rol: 'MESERO', activo: true },
+];
+
+const MESERO_EN_SESION = MESEROS[0];
+
 interface Respuestas {
   reservas?: () => Response | Promise<Response>;
   mesas?: () => Response | Promise<Response>;
+  clientes?: () => Response | Promise<Response>;
+  meseros?: () => Response | Promise<Response>;
   cambio?: () => Response | Promise<Response>;
+  crear?: () => Response | Promise<Response>;
 }
 
-/** Responde según la ruta, para poder tumbar las mesas sin tumbar las reservas. */
+/** Responde según la ruta, para poder tumbar una sola de las consultas. */
 function simularBackend(respuestas: Respuestas) {
   vi.stubGlobal(
     'fetch',
@@ -66,22 +82,55 @@ function simularBackend(respuestas: Respuestas) {
       if (opciones?.method === 'PATCH') {
         return Promise.resolve((respuestas.cambio ?? (() => json({})))());
       }
+      if (opciones?.method === 'POST') {
+        return Promise.resolve((respuestas.crear ?? (() => json(DE_ANA, 201)))());
+      }
       if (url === '/api/mesas') {
         return Promise.resolve((respuestas.mesas ?? (() => json(MESAS)))());
+      }
+      if (url === '/api/clientes') {
+        return Promise.resolve((respuestas.clientes ?? (() => json(CLIENTES)))());
+      }
+      if (url.startsWith('/api/usuarios')) {
+        return Promise.resolve((respuestas.meseros ?? (() => json(MESEROS)))());
       }
       return Promise.resolve((respuestas.reservas ?? (() => json([])))());
     }),
   );
 }
 
+/** Los cuerpos enviados con POST, ya convertidos desde JSON. */
+function reservasEnviadas(): unknown[] {
+  const llamadas = (fetch as unknown as { mock: { calls: [string, RequestInit?][] } }).mock.calls;
+  return llamadas
+    .filter(([url, opciones]) => url === '/api/reservas' && opciones?.method === 'POST')
+    .map(([, opciones]) => JSON.parse(String(opciones?.body)));
+}
+
+/** El drawer necesita la sesión para dejar elegido el mesero que lo abre. */
+function pintarConSesion() {
+  sessionStorage.setItem('kandela.sesion', JSON.stringify(MESERO_EN_SESION));
+  return render(
+    <SesionProveedor>
+      <Reservas />
+    </SesionProveedor>,
+  );
+}
+
+async function abrirElDrawer() {
+  fireEvent.click(await screen.findByRole('button', { name: 'Nueva reserva' }));
+  return screen.findByRole('dialog', { name: 'Nueva reserva' });
+}
+
 afterEach(() => {
+  sessionStorage.clear();
   vi.unstubAllGlobals();
 });
 
 describe('las reservas del salón', () => {
   it('las ordena de la mas proxima a la mas lejana', async () => {
     simularBackend({ reservas: () => json([DE_LUIS, DE_MARCELA, DE_ANA]) });
-    const { container } = render(<Reservas />);
+    const { container } = pintarConSesion();
 
     await screen.findByText('Marcela Gómez');
     const filas = [...container.querySelectorAll('.f-fila')];
@@ -93,21 +142,21 @@ describe('las reservas del salón', () => {
 
   it('dice vigente en singular cuando solo queda una', async () => {
     simularBackend({ reservas: () => json([DE_MARCELA, CANCELADA]) });
-    render(<Reservas />);
+    pintarConSesion();
 
     expect(await screen.findByText('(1 vigente)')).toBeInTheDocument();
   });
 
   it('cuenta en el parentesis solo las reservas vigentes', async () => {
     simularBackend({ reservas: () => json([DE_MARCELA, DE_ANA, CANCELADA]) });
-    render(<Reservas />);
+    pintarConSesion();
 
     expect(await screen.findByText(/2 vigentes/)).toBeInTheDocument();
   });
 
   it('deja en la lista las cerradas, atenuadas', async () => {
     simularBackend({ reservas: () => json([DE_MARCELA, CANCELADA]) });
-    const { container } = render(<Reservas />);
+    const { container } = pintarConSesion();
 
     await screen.findByText('Pedro Díaz');
     const apagadas = container.querySelectorAll('.f-fila--apagada');
@@ -117,7 +166,7 @@ describe('las reservas del salón', () => {
 
   it('nombra la mesa por su numero, que viene del salon', async () => {
     simularBackend({ reservas: () => json([DE_MARCELA]) });
-    render(<Reservas />);
+    pintarConSesion();
 
     expect(await screen.findByText('Mesa 4')).toBeInTheDocument();
   });
@@ -127,7 +176,7 @@ describe('las reservas del salón', () => {
       reservas: () => json([DE_MARCELA]),
       mesas: () => json({ error: 'El salón no está disponible.' }, 503),
     });
-    render(<Reservas />);
+    pintarConSesion();
 
     expect(await screen.findByText('Marcela Gómez')).toBeInTheDocument();
     expect(screen.getByText('6 personas')).toBeInTheDocument();
@@ -135,14 +184,14 @@ describe('las reservas del salón', () => {
 
   it('avisa cuando no hay ninguna reserva', async () => {
     simularBackend({ reservas: () => json([]) });
-    render(<Reservas />);
+    pintarConSesion();
 
     expect(await screen.findByText(/Sin reservas/)).toBeInTheDocument();
   });
 
   it('ofrece reintentar cuando el servicio de reservas no responde', async () => {
     simularBackend({ reservas: () => json({ error: 'No disponible.' }, 503) });
-    render(<Reservas />);
+    pintarConSesion();
 
     expect(await screen.findByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
 
@@ -164,7 +213,7 @@ describe('los cambios de estado de la reserva', () => {
 
   it('ofrece confirmar solo en las pendientes', async () => {
     simularBackend({ reservas: () => json([DE_MARCELA, DE_ANA]) });
-    render(<Reservas />);
+    pintarConSesion();
 
     await screen.findByText('Ana Torres');
     expect(screen.getAllByRole('button', { name: 'Confirmar' })).toHaveLength(1);
@@ -172,7 +221,7 @@ describe('los cambios de estado de la reserva', () => {
 
   it('ofrece cumplida solo en las confirmadas', async () => {
     simularBackend({ reservas: () => json([DE_MARCELA, DE_ANA]) });
-    render(<Reservas />);
+    pintarConSesion();
 
     await screen.findByText('Marcela Gómez');
     expect(screen.getAllByRole('button', { name: 'Cumplida' })).toHaveLength(1);
@@ -180,7 +229,7 @@ describe('los cambios de estado de la reserva', () => {
 
   it('no ofrece nada en las reservas cerradas', async () => {
     simularBackend({ reservas: () => json([CANCELADA]) });
-    render(<Reservas />);
+    pintarConSesion();
 
     await screen.findByText('Pedro Díaz');
     expect(screen.queryByRole('button', { name: 'Confirmar' })).not.toBeInTheDocument();
@@ -192,7 +241,7 @@ describe('los cambios de estado de la reserva', () => {
       reservas: () => json([DE_ANA]),
       cambio: () => json({ ...DE_ANA, estado: 'CONFIRMADA' }),
     });
-    render(<Reservas />);
+    pintarConSesion();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Confirmar' }));
 
@@ -208,7 +257,7 @@ describe('los cambios de estado de la reserva', () => {
       reservas: () => json([DE_ANA]),
       cambio: () => json({ ...DE_ANA, estado: 'CONFIRMADA' }),
     });
-    render(<Reservas />);
+    pintarConSesion();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Confirmar' }));
 
@@ -222,7 +271,7 @@ describe('los cambios de estado de la reserva', () => {
       reservas: () => json([DE_MARCELA]),
       cambio: () => json({ ...DE_MARCELA, estado: 'CUMPLIDA' }),
     });
-    render(<Reservas />);
+    pintarConSesion();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Cumplida' }));
 
@@ -236,7 +285,7 @@ describe('los cambios de estado de la reserva', () => {
       reservas: () => json([DE_ANA]),
       cambio: () => json({ error: 'No se puede pasar una reserva de PENDIENTE a CUMPLIDA.' }, 409),
     });
-    render(<Reservas />);
+    pintarConSesion();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Confirmar' }));
 
@@ -259,7 +308,7 @@ describe('cancelar una reserva', () => {
 
   it('ofrece cancelar en las vigentes, nunca en las cerradas', async () => {
     simularBackend({ reservas: () => json([DE_MARCELA, DE_ANA, CANCELADA]) });
-    render(<Reservas />);
+    pintarConSesion();
 
     await screen.findByText('Pedro Díaz');
     expect(screen.getAllByRole('button', { name: 'Cancelar' })).toHaveLength(2);
@@ -267,7 +316,7 @@ describe('cancelar una reserva', () => {
 
   it('no cancela nada hasta que se confirma en el dialogo', async () => {
     simularBackend({ reservas: () => json([DE_ANA]) });
-    render(<Reservas />);
+    pintarConSesion();
 
     const dialogo = await abrirElDialogoDe('Ana Torres');
 
@@ -281,7 +330,7 @@ describe('cancelar una reserva', () => {
 
   it('dice que la mesa deja de aparecer reservada', async () => {
     simularBackend({ reservas: () => json([DE_MARCELA]) });
-    render(<Reservas />);
+    pintarConSesion();
 
     const dialogo = await abrirElDialogoDe('Marcela Gómez');
 
@@ -295,7 +344,7 @@ describe('cancelar una reserva', () => {
 
   it('cuando la reserva no tiene mesa, dice que queda en el historial', async () => {
     simularBackend({ reservas: () => json([{ ...DE_ANA, mesaId: null }]) });
-    render(<Reservas />);
+    pintarConSesion();
 
     const dialogo = await abrirElDialogoDe('Ana Torres');
 
@@ -306,7 +355,7 @@ describe('cancelar una reserva', () => {
 
   it('volver cierra el dialogo sin tocar la reserva', async () => {
     simularBackend({ reservas: () => json([DE_ANA]) });
-    render(<Reservas />);
+    pintarConSesion();
 
     const dialogo = await abrirElDialogoDe('Ana Torres');
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Volver' }));
@@ -320,7 +369,7 @@ describe('cancelar una reserva', () => {
       reservas: () => json([DE_ANA]),
       cambio: () => json({ ...DE_ANA, estado: 'CANCELADA' }),
     });
-    render(<Reservas />);
+    pintarConSesion();
 
     const dialogo = await abrirElDialogoDe('Ana Torres');
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Cancelar reserva' }));
@@ -335,7 +384,7 @@ describe('cancelar una reserva', () => {
       reservas: () => json([DE_ANA]),
       cambio: () => json({ error: 'No se puede pasar una reserva de CANCELADA a CANCELADA.' }, 409),
     });
-    render(<Reservas />);
+    pintarConSesion();
 
     const dialogo = await abrirElDialogoDe('Ana Torres');
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Cancelar reserva' }));
@@ -347,5 +396,164 @@ describe('cancelar una reserva', () => {
     expect(
       within(abierto).queryByRole('button', { name: 'Cancelar reserva' }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe('el drawer de nueva reserva', () => {
+  it('no esta abierto hasta que se pulsa el boton', async () => {
+    simularBackend({ reservas: () => json([DE_MARCELA]) });
+    pintarConSesion();
+
+    await screen.findByText('Marcela Gómez');
+    expect(screen.queryByRole('dialog', { name: 'Nueva reserva' })).not.toBeInTheDocument();
+  });
+
+  it('deja elegido el mesero de la sesion', async () => {
+    simularBackend({ reservas: () => json([]) });
+    pintarConSesion();
+
+    const drawer = await abrirElDrawer();
+
+    expect(within(drawer).getByLabelText(/Mesero/)).toHaveValue('2');
+  });
+
+  it('ofrece los clientes con su documento', async () => {
+    simularBackend({ reservas: () => json([]) });
+    pintarConSesion();
+
+    const drawer = await abrirElDrawer();
+
+    expect(within(drawer).getByRole('option', { name: 'Elija un cliente' })).toBeInTheDocument();
+    expect(
+      within(drawer).getByRole('option', { name: 'Ana Torres · 1001234567' }),
+    ).toBeInTheDocument();
+  });
+
+  it('ofrece las mesas con su capacidad, y dejarla sin asignar', async () => {
+    simularBackend({ reservas: () => json([]) });
+    pintarConSesion();
+
+    const drawer = await abrirElDrawer();
+    // «Sin asignar» también está en Mesero, así que se mira dentro de Mesa.
+    const mesa = within(drawer).getByLabelText(/^Mesa/);
+
+    expect(within(mesa).getByRole('option', { name: 'Sin asignar' })).toBeInTheDocument();
+    expect(within(mesa).getByRole('option', { name: 'Mesa 2 · 4 personas' })).toBeInTheDocument();
+    expect(within(mesa).getByRole('option', { name: 'Mesa 1 · 2 personas' })).toBeInTheDocument();
+  });
+
+  it('con los campos vacios avisa cuantos revisar y no envia nada', async () => {
+    simularBackend({ reservas: () => json([]) });
+    pintarConSesion();
+
+    const drawer = await abrirElDrawer();
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Registrar reserva' }));
+
+    expect(await screen.findByText('Revise 4 campos')).toBeInTheDocument();
+    expect(within(drawer).getByText(/El cliente es obligatorio/)).toBeInTheDocument();
+    expect(within(drawer).getByText(/La fecha es obligatoria/)).toBeInTheDocument();
+    expect(within(drawer).getByText(/La hora es obligatoria/)).toBeInTheDocument();
+    expect(within(drawer).getByText(/El número de personas es obligatorio/)).toBeInTheDocument();
+    expect(reservasEnviadas()).toHaveLength(0);
+  });
+
+  it('el error de un campo desaparece al escribir en el', async () => {
+    simularBackend({ reservas: () => json([]) });
+    pintarConSesion();
+
+    const drawer = await abrirElDrawer();
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Registrar reserva' }));
+    await screen.findByText('Revise 4 campos');
+
+    fireEvent.change(within(drawer).getByLabelText(/Personas/), { target: { value: '4' } });
+
+    expect(
+      within(drawer).queryByText(/El número de personas es obligatorio/),
+    ).not.toBeInTheDocument();
+  });
+
+  it('envia la reserva con la fecha y la hora juntas, sin convertir la zona', async () => {
+    simularBackend({ reservas: () => json([]) });
+    pintarConSesion();
+
+    const drawer = await abrirElDrawer();
+    fireEvent.change(within(drawer).getByLabelText(/Cliente/), { target: { value: '1' } });
+    fireEvent.change(within(drawer).getByLabelText(/Fecha/), { target: { value: '2026-12-24' } });
+    fireEvent.change(within(drawer).getByLabelText(/Hora/), { target: { value: '19:00' } });
+    fireEvent.change(within(drawer).getByLabelText(/Personas/), { target: { value: '4' } });
+    fireEvent.change(within(drawer).getByLabelText(/^Mesa/), { target: { value: '2' } });
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Registrar reserva' }));
+
+    await waitFor(() => expect(reservasEnviadas()).toHaveLength(1));
+    expect(reservasEnviadas()[0]).toEqual({
+      fechaHora: '2026-12-24T19:00:00',
+      numPersonas: 4,
+      clienteId: 1,
+      mesaId: 2,
+      meseroId: 2,
+    });
+  });
+
+  it('omite la mesa cuando se deja sin asignar', async () => {
+    simularBackend({ reservas: () => json([]) });
+    pintarConSesion();
+
+    const drawer = await abrirElDrawer();
+    fireEvent.change(within(drawer).getByLabelText(/Cliente/), { target: { value: '1' } });
+    fireEvent.change(within(drawer).getByLabelText(/Fecha/), { target: { value: '2026-12-24' } });
+    fireEvent.change(within(drawer).getByLabelText(/Hora/), { target: { value: '19:00' } });
+    fireEvent.change(within(drawer).getByLabelText(/Personas/), { target: { value: '6' } });
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Registrar reserva' }));
+
+    await waitFor(() => expect(reservasEnviadas()).toHaveLength(1));
+    expect(reservasEnviadas()[0]).not.toHaveProperty('mesaId');
+  });
+
+  it('al registrarla cierra el drawer, lo cuenta y la pone en la lista', async () => {
+    simularBackend({
+      reservas: () => json([DE_MARCELA]),
+      crear: () => json({ ...DE_ANA, fechaHora: '2026-12-24T19:00:00' }, 201),
+    });
+    pintarConSesion();
+
+    const drawer = await abrirElDrawer();
+    fireEvent.change(within(drawer).getByLabelText(/Cliente/), { target: { value: '1' } });
+    fireEvent.change(within(drawer).getByLabelText(/Fecha/), { target: { value: '2026-12-24' } });
+    fireEvent.change(within(drawer).getByLabelText(/Hora/), { target: { value: '19:00' } });
+    fireEvent.change(within(drawer).getByLabelText(/Personas/), { target: { value: '4' } });
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Registrar reserva' }));
+
+    expect(
+      await screen.findByText(
+        'Reserva de Ana Torres registrada para 24 dic a las 19:00. Queda pendiente de confirmar.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Nueva reserva' })).not.toBeInTheDocument();
+    expect(screen.getByText('Ana Torres')).toBeInTheDocument();
+  });
+
+  it('escape cierra el drawer sin registrar nada', async () => {
+    simularBackend({ reservas: () => json([]) });
+    pintarConSesion();
+
+    const drawer = await abrirElDrawer();
+    fireEvent.keyDown(document.activeElement ?? drawer, { key: 'Escape' });
+
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Nueva reserva' })).not.toBeInTheDocument(),
+    );
+    expect(reservasEnviadas()).toHaveLength(0);
+  });
+
+  it('el velo cubre la pantalla, barra incluida', async () => {
+    simularBackend({ reservas: () => json([]) });
+    const { container } = pintarConSesion();
+
+    await abrirElDrawer();
+
+    // El velo se dibuja sobre todo el shell, que ocupa la ventana: por eso
+    // tapa también la barra de rol y no deja pulsar las pestañas.
+    expect(container.querySelector('.f-velo')).toBeInTheDocument();
+    expect(container.querySelector('.f-velo > .f-drawer')).toBeInTheDocument();
   });
 });

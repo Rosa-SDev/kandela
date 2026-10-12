@@ -1,13 +1,24 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { EstadoReserva, MesaDTO, ReservaDTO } from '@compartido/api/tipos';
+import type { ClienteDTO, EstadoReserva, MesaDTO, ReservaDTO, UsuarioDTO } from '@compartido/api/tipos';
 import type { ErrorKandela } from '@compartido/api/errores';
 import { Aviso } from '../componentes/Aviso';
 import { Boton } from '../componentes/Boton';
+import { Campo } from '../componentes/Campo';
 import { Dialogo } from '../componentes/Dialogo';
+import { Drawer } from '../componentes/Drawer';
 import { Titulo } from '../componentes/Titulo';
 import { FilaReserva } from '../objetos/FilaReserva';
-import { esReservaVigente } from '../objetos/estadoReserva';
-import { comoErrorKandela, get, patch } from '../nucleo/api';
+import { esReservaVigente, fechaCorta } from '../objetos/estadoReserva';
+import { comoErrorKandela, get, patch, post } from '../nucleo/api';
+import { useSesion } from '../nucleo/sesion';
+import {
+  cuerpoDeReserva,
+  formularioVacio,
+  validar,
+  type CampoDeReserva,
+  type ErroresDeReserva,
+  type FormularioReserva,
+} from './nuevaReserva';
 
 /** Cómo se cuenta lo que acaba de pasar con la reserva. */
 const HECHO: Partial<Record<EstadoReserva, string>> = {
@@ -43,11 +54,23 @@ export function Reservas() {
   const [porCancelar, setPorCancelar] = useState<ReservaDTO | null>(null);
   const [errorDelDialogo, setErrorDelDialogo] = useState<ErrorKandela | null>(null);
 
+  const [clientes, setClientes] = useState<ClienteDTO[]>([]);
+  const [meseros, setMeseros] = useState<UsuarioDTO[]>([]);
+  const [drawerAbierto, setDrawerAbierto] = useState(false);
+  const [formulario, setFormulario] = useState<FormularioReserva>(() => formularioVacio());
+  const [errores, setErrores] = useState<ErroresDeReserva>({});
+  const [resumen, setResumen] = useState<ErrorKandela | null>(null);
+  const [registrando, setRegistrando] = useState(false);
+
+  const { usuario } = useSesion();
+
   // Nada de setState antes del await: dentro de un efecto eso encadena renders.
   const cargar = useCallback(async () => {
-    const [deReservas, deMesas] = await Promise.allSettled([
+    const [deReservas, deMesas, deClientes, deMeseros] = await Promise.allSettled([
       get<ReservaDTO[]>('/reservas'),
       get<MesaDTO[]>('/mesas'),
+      get<ClienteDTO[]>('/clientes'),
+      get<UsuarioDTO[]>('/usuarios?rol=MESERO'),
     ]);
 
     if (deReservas.status === 'rejected') {
@@ -59,6 +82,8 @@ export function Reservas() {
     }
 
     setMesas(deMesas.status === 'fulfilled' ? deMesas.value : []);
+    setClientes(deClientes.status === 'fulfilled' ? deClientes.value : []);
+    setMeseros(deMeseros.status === 'fulfilled' ? deMeseros.value : []);
     setCargando(false);
   }, []);
 
@@ -135,6 +160,72 @@ export function Reservas() {
     setPorCancelar(reserva);
   }
 
+  function abrirDrawer() {
+    setFormulario(formularioVacio(usuario?.id));
+    setErrores({});
+    setResumen(null);
+    setHecho(null);
+    setErrorDeAccion(null);
+    setDrawerAbierto(true);
+  }
+
+  /** Al escribir en un campo, su error deja de tener sentido. */
+  function cambiarCampo(campo: CampoDeReserva, valor: string) {
+    setFormulario((anterior) => ({ ...anterior, [campo]: valor }));
+    setErrores((anteriores) => {
+      if (!(campo in anteriores)) {
+        return anteriores;
+      }
+      const resto = { ...anteriores };
+      delete resto[campo];
+      return resto;
+    });
+  }
+
+  /**
+   * Envía la reserva al servidor.
+   *
+   * Las reglas de forma se comprueban antes para no gastar una ida y vuelta,
+   * pero las de negocio —si la mesa alcanza, si el cliente existe— las
+   * responde el servicio, y su mensaje es el que se muestra.
+   */
+  async function registrar() {
+    if (registrando) {
+      return;
+    }
+
+    const deForma = validar(formulario);
+    if (Object.keys(deForma).length > 0) {
+      setErrores(deForma);
+      const cuantos = Object.keys(deForma).length;
+      setResumen({
+        status: null,
+        titulo: `Revise ${cuantos} campo${cuantos === 1 ? '' : 's'}`,
+        texto: 'No se registró nada todavía.',
+        campos: {},
+      });
+      return;
+    }
+
+    setRegistrando(true);
+    setErrores({});
+    setResumen(null);
+    try {
+      const creada = await post<ReservaDTO>('/reservas', cuerpoDeReserva(formulario));
+      setReservas((anteriores) => [...anteriores, creada]);
+      setHecho(
+        `Reserva de ${creada.clienteNombre} registrada para ` +
+          `${fechaCorta(creada.fechaHora).toLowerCase()} a las ${formulario.hora}. ` +
+          'Queda pendiente de confirmar.',
+      );
+      setDrawerAbierto(false);
+    } catch (fallo) {
+      setResumen(comoErrorKandela(fallo));
+    } finally {
+      setRegistrando(false);
+    }
+  }
+
   /** Lo que se puede hacer con una reserva depende de en qué estado está. */
   function accionesDe(reserva: ReservaDTO) {
     if (!esReservaVigente(reserva.estado)) {
@@ -197,6 +288,7 @@ export function Reservas() {
               : `${vigentes} ${vigentes === 1 ? 'vigente' : 'vigentes'}`
           }
         />
+        <Boton texto="Nueva reserva" variante="calor" onClick={abrirDrawer} />
       </div>
 
       {error ? (
@@ -231,6 +323,120 @@ export function Reservas() {
             />
           ))}
         </div>
+      ) : null}
+
+      {drawerAbierto ? (
+        <Drawer
+          titulo="Nueva reserva"
+          onCerrar={() => setDrawerAbierto(false)}
+          cuerpo={
+            <>
+              {resumen ? (
+                <Aviso tono="err" titulo={resumen.titulo} texto={resumen.texto} />
+              ) : null}
+
+              <Campo
+                id="reserva-cliente"
+                label="Cliente"
+                tipo="select"
+                req
+                valor={formulario.cliente}
+                error={errores.cliente}
+                opciones={[
+                  ['', 'Elija un cliente'],
+                  ...clientes.map(
+                    (cliente) =>
+                      [String(cliente.id), `${cliente.nombre} · ${cliente.documento}`] as [
+                        string,
+                        string,
+                      ],
+                  ),
+                ]}
+                onCambiar={(valor) => cambiarCampo('cliente', valor)}
+              />
+
+              <div className="f-dos">
+                <Campo
+                  id="reserva-fecha"
+                  label="Fecha"
+                  tipo="date"
+                  req
+                  valor={formulario.fecha}
+                  error={errores.fecha}
+                  onCambiar={(valor) => cambiarCampo('fecha', valor)}
+                />
+                <Campo
+                  id="reserva-hora"
+                  label="Hora"
+                  tipo="time"
+                  req
+                  valor={formulario.hora}
+                  error={errores.hora}
+                  onCambiar={(valor) => cambiarCampo('hora', valor)}
+                />
+              </div>
+
+              <div className="f-dos">
+                <Campo
+                  id="reserva-personas"
+                  label="Personas"
+                  req
+                  valor={formulario.personas}
+                  error={errores.personas}
+                  onCambiar={(valor) => cambiarCampo('personas', valor)}
+                />
+                <Campo
+                  id="reserva-mesa"
+                  label="Mesa"
+                  tipo="select"
+                  valor={formulario.mesa}
+                  error={errores.mesa}
+                  opciones={[
+                    ['', 'Sin asignar'],
+                    ...[...mesas]
+                      .sort((una, otra) => una.numero - otra.numero)
+                      .map(
+                        (mesa) =>
+                          [String(mesa.id), `Mesa ${mesa.numero} · ${mesa.capacidad} personas`] as [
+                            string,
+                            string,
+                          ],
+                      ),
+                  ]}
+                  onCambiar={(valor) => cambiarCampo('mesa', valor)}
+                />
+              </div>
+
+              <Campo
+                id="reserva-mesero"
+                label="Mesero"
+                tipo="select"
+                valor={formulario.mesero}
+                error={errores.mesero}
+                opciones={[
+                  ['', 'Sin asignar'],
+                  ...meseros.map(
+                    (mesero) => [String(mesero.id), mesero.nombre] as [string, string],
+                  ),
+                ]}
+                onCambiar={(valor) => cambiarCampo('mesero', valor)}
+              />
+
+              <p className="f-req">* Obligatorio</p>
+            </>
+          }
+          pieDer={
+            <>
+              <Boton texto="Cancelar" variante="texto" onClick={() => setDrawerAbierto(false)} />
+              <Boton
+                texto="Registrar reserva"
+                variante="calor"
+                disabled={registrando}
+                onClick={() => void registrar()}
+              />
+            </>
+          }
+        />
       ) : null}
 
       {porCancelar ? (
