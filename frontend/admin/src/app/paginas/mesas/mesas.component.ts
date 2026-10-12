@@ -82,6 +82,7 @@ export class MesasComponent implements OnInit {
   resaltadoId = signal<number | null>(null);
 
   drawerAbierto = signal(false);
+  editando = signal<MesaDTO | null>(null);
   guardando = signal(false);
   resumen = signal<{ titulo: string; texto: string } | null>(null);
   errorNumeroSrv = signal<string | null>(null);
@@ -133,7 +134,27 @@ export class MesasComponent implements OnInit {
   }
 
   abrir() {
+    this.editando.set(null);
     this.formulario.reset({ numero: '', capacidad: '' });
+    this.preparar();
+  }
+
+  /**
+   * Abre el drawer con los datos de esa mesa.
+   *
+   * El estado no se edita: lo lleva el salón según lo que pase encima de la
+   * mesa, así que el formulario solo toca el número y la capacidad.
+   */
+  editar(mesa: MesaDTO) {
+    this.editando.set(mesa);
+    this.formulario.reset({
+      numero: String(mesa.numero),
+      capacidad: String(mesa.capacidad)
+    });
+    this.preparar();
+  }
+
+  private preparar() {
     this.resumen.set(null);
     this.errorNumeroSrv.set(null);
     this.exito.set(null);
@@ -174,23 +195,33 @@ export class MesasComponent implements OnInit {
 
     const valores = this.formulario.getRawValue();
     const datos = { numero: Number(valores.numero), capacidad: Number(valores.capacidad) };
+    const original = this.editando();
 
     this.guardando.set(true);
     this.resumen.set(null);
     this.errorNumeroSrv.set(null);
 
-    this.mesasService.crear(datos).subscribe({
-      next: (creada) => {
-        this.mesas.update((lista) => [...lista, creada]);
-        this.exito.set(`Mesa ${creada.numero} creada para ${creada.capacidad} personas.`);
-        this.resaltadoId.set(creada.id);
+    const peticion = original
+      ? this.mesasService.actualizar(original.id, datos)
+      : this.mesasService.crear(datos);
+
+    peticion.subscribe({
+      next: (guardada) => {
+        if (original) {
+          this.mesas.update((lista) => lista.map((m) => (m.id === guardada.id ? guardada : m)));
+          this.exito.set(`Mesa ${guardada.numero} actualizada.`);
+        } else {
+          this.mesas.update((lista) => [...lista, guardada]);
+          this.exito.set(`Mesa ${guardada.numero} creada para ${guardada.capacidad} personas.`);
+        }
+        this.resaltadoId.set(guardada.id);
         this.guardando.set(false);
         this.drawerAbierto.set(false);
       },
       error: (err) => {
         this.guardando.set(false);
-        // El único conflicto al crear es que ese número ya esté tomado, así que
-        // además del aviso se marca el campo que hay que cambiar.
+        // El único conflicto al crear o renumerar es que ese número ya esté
+        // tomado, así que además del aviso se marca el campo que hay que cambiar.
         if (err.status === 409) {
           this.errorNumeroSrv.set('! Revise este campo.');
           this.resumen.set({ titulo: err.titulo, texto: 'Elija otro número.' });

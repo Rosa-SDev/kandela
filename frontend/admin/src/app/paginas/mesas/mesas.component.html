@@ -18,7 +18,7 @@
 }
 
 <app-tabla
-  [columnas]="['Mesa', 'Capacidad', 'Estado', 'Ahora']"
+  [columnas]="['Mesa', 'Capacidad', 'Estado', 'Ahora', '']"
   [vacia]="!cargando() && !error() && filas().length === 0"
   mensajeVacia="SIN MESAS">
   @for (fila of filas(); track fila.mesa.id) {
@@ -32,12 +32,18 @@
         </app-estado>
       </td>
       <td>{{ fila.ahora }}</td>
+      <td class="acc">
+        <app-boton variante="texto" (accion)="editar(fila.mesa)">Editar</app-boton>
+      </td>
     </tr>
   }
 </app-tabla>
 
 @if (drawerAbierto()) {
-  <app-drawer titulo="Nueva mesa" (cerrar)="cerrar()">
+  <app-drawer
+    [titulo]="editando() ? 'Editar mesa' : 'Nueva mesa'"
+    [par]="editando() ? 'Mesa ' + editando()!.numero : null"
+    (cerrar)="cerrar()">
     @if (resumen()) {
       <app-aviso tono="err" glifo="!" [titulo]="resumen()!.titulo">
         {{ resumen()!.texto }}
@@ -65,7 +71,7 @@
 
     <app-boton pie-der variante="texto" (accion)="cerrar()">Cancelar</app-boton>
     <app-boton pie-der variante="calor" [disabled]="guardando()" (accion)="guardar()">
-      Crear mesa
+      {{ editando() ? 'Guardar cambios' : 'Crear mesa' }}
     </app-boton>
   </app-drawer>
 }
