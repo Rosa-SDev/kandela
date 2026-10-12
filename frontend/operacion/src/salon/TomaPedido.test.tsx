@@ -256,16 +256,121 @@ describe('TomaPedido', () => {
     ).toBeInTheDocument();
   });
 
-  it('si la carta no responde se avisa y la comanda sigue en pie', async () => {
+  it('si la carta no responde al entrar se avisa y la comanda sigue en pie', async () => {
+    // Con carta-service apagado, el gateway responde con su propio error.
     simularBackend({
-      carta: () => json({ error: 'La carta no está disponible en este momento.' }, 503),
+      carta: () =>
+        json(
+          { timestamp: '2026-10-12T20:52:58.972Z', status: 500, error: 'Internal Server Error', path: '/api/platillos' },
+          500,
+        ),
     });
     pintarToma();
 
     expect(
-      await screen.findByText('La carta no está disponible en este momento.'),
+      await screen.findByText('La carta no está disponible en este momento'),
     ).toBeInTheDocument();
     expect(screen.getByLabelText('Cantidad de Bandeja paisa')).toHaveTextContent('2');
+    expect(screen.queryByLabelText('Agregar Bandeja paisa')).not.toBeInTheDocument();
+  });
+
+  it('un 503 al agregar reemplaza la carta y dice que la comanda se conserva', async () => {
+    simularBackend({
+      agregar: () => json({ error: 'La carta no está disponible en este momento.' }, 503),
+    });
+    pintarToma();
+
+    fireEvent.click(await screen.findByLabelText('Agregar Bandeja paisa'));
+
+    expect(
+      await screen.findByText('La carta no está disponible en este momento'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Los platillos que ya están en la comanda se conservan y se pueden enviar a cocina.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText('Agregar Bandeja paisa')).not.toBeInTheDocument();
+    // La comanda no se toca.
+    expect(screen.getByLabelText('Cantidad de Bandeja paisa')).toHaveTextContent('2');
+  });
+
+  it('con la comanda vacia el aviso solo pide esperar', async () => {
+    simularBackend({
+      pedido: () => json(pedido({ platillos: [] })),
+      carta: () => json({ error: 'Vaya' }, 503),
+    });
+    pintarToma();
+
+    expect(
+      await screen.findByText('La carta no está disponible en este momento'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Intente de nuevo en un momento.')).toBeInTheDocument();
+    expect(
+      screen.queryByText('Los platillos que ya están en la comanda se conservan y se pueden enviar a cocina.'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('reintentar con la carta todavia apagada deja el aviso', async () => {
+    simularBackend({
+      carta: () =>
+        json(
+          { timestamp: '2026-10-12T20:52:58.972Z', status: 500, error: 'Internal Server Error', path: '/api/platillos' },
+          500,
+        ),
+    });
+    pintarToma();
+
+    const reintentar = await screen.findByText('Reintentar');
+    fireEvent.click(reintentar);
+
+    await waitFor(() => expect(llamadas('/api/platillos', 'GET')).toHaveLength(2));
+    await waitFor(() => expect(reintentar).toBeEnabled());
+    expect(screen.getByText('La carta no está disponible en este momento')).toBeInTheDocument();
+  });
+
+  it('reintentar mientras la carta arranca tampoco rompe la pantalla', async () => {
+    // Al reencender, carta responde 404 unos instantes.
+    simularBackend({ carta: () => json({ error: 'No encontrado' }, 404) });
+    pintarToma();
+
+    fireEvent.click(await screen.findByText('Reintentar'));
+
+    await waitFor(() => expect(llamadas('/api/platillos', 'GET')).toHaveLength(2));
+    expect(screen.getByText('La carta no está disponible en este momento')).toBeInTheDocument();
+    expect(screen.getByLabelText('Cantidad de Bandeja paisa')).toHaveTextContent('2');
+  });
+
+  it('cuando la carta vuelve, reintentar la trae de nuevo', async () => {
+    let encendida = false;
+    simularBackend({
+      carta: () => {
+        if (!encendida) {
+          encendida = true;
+          return json({ error: 'Vaya' }, 503);
+        }
+        return json(CARTA);
+      },
+    });
+    pintarToma();
+
+    fireEvent.click(await screen.findByText('Reintentar'));
+
+    expect(await screen.findByLabelText('Agregar Bandeja paisa')).toBeInTheDocument();
+    expect(
+      screen.queryByText('La carta no está disponible en este momento'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('con la carta caida la comanda todavia se envia a cocina', async () => {
+    simularBackend({ carta: () => json({ error: 'Vaya' }, 503) });
+    pintarToma();
+
+    await screen.findByText('La carta no está disponible en este momento');
+    fireEvent.click(screen.getByText('Enviar a cocina'));
+
+    await waitFor(() => expect(llamadas('/api/pedidos/12/estado', 'PATCH')).toHaveLength(1));
+    expect(
+      await screen.findByText('Comanda enviada a cocina: ya no se pueden agregar platillos.'),
+    ).toBeInTheDocument();
   });
 
   it('sin platillos no se puede enviar a cocina', async () => {

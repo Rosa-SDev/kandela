@@ -33,7 +33,11 @@ export function TomaPedido() {
   const [mesa, setMesa] = useState<MesaDTO | null>(null);
   const [carta, setCarta] = useState<PlatilloDTO[]>([]);
   const [errorDelPedido, setErrorDelPedido] = useState<ErrorKandela | null>(null);
-  const [errorDeLaCarta, setErrorDeLaCarta] = useState<ErrorKandela | null>(null);
+  // «La carta no está disponible» es un solo estado, venga de donde venga el
+  // fallo: el 500 del gateway con carta apagado, un 503, el 404 de los
+  // instantes en que está arrancando o quedarse sin conexión.
+  const [cartaCaida, setCartaCaida] = useState(false);
+  const [reintentando, setReintentando] = useState(false);
   const [errorDeAccion, setErrorDeAccion] = useState<ErrorKandela | null>(null);
   const [errorDeNota, setErrorDeNota] = useState<string | undefined>(undefined);
   const [borradorDeNota, setBorradorDeNota] = useState('');
@@ -62,10 +66,10 @@ export function TomaPedido() {
     }
 
     if (deLaCarta.status === 'rejected') {
-      setErrorDeLaCarta(comoError(deLaCarta.reason));
+      setCartaCaida(true);
       setCarta([]);
     } else {
-      setErrorDeLaCarta(null);
+      setCartaCaida(false);
       setCarta(deLaCarta.value);
     }
   }, [pedidoId]);
@@ -79,11 +83,22 @@ export function TomaPedido() {
   async function recargarLaCarta() {
     try {
       setCarta(await get<PlatilloDTO[]>('/platillos'));
-      setErrorDeLaCarta(null);
-    } catch (error) {
-      setErrorDeLaCarta(comoError(error));
+      setCartaCaida(false);
+    } catch {
+      setCartaCaida(true);
       setCarta([]);
     }
+  }
+
+  /** Vuelve a pedir la carta. Si sigue sin responder, el aviso se queda. */
+  async function reintentarLaCarta() {
+    if (reintentando) {
+      return;
+    }
+    setReintentando(true);
+    setErrorDeAccion(null);
+    await recargarLaCarta();
+    setReintentando(false);
   }
 
   async function agregar(platillo: PlatilloDTO) {
@@ -96,11 +111,18 @@ export function TomaPedido() {
       setPedido(await post<PedidoDTO>(`/pedidos/${pedido.id}/platillos`, { platilloId: platillo.id }));
     } catch (error) {
       const fallo = comoError(error);
-      setErrorDeAccion(fallo);
-      // Si el servidor dice que se agotó, la carta que está en pantalla ya no
-      // es la de verdad: se vuelve a pedir para que aparezca tachado.
-      if (fallo.status === 409) {
+      if (fallo.status === 503) {
+        // Es el salón diciendo que no alcanzó a la carta: la columna entera
+        // deja de ser de fiar, y el aviso lo explica mejor que un renglón.
+        setCartaCaida(true);
+        setErrorDeAccion(null);
+      } else if (fallo.status === 409) {
+        // Si el servidor dice que se agotó, la carta que está en pantalla ya
+        // no es la de verdad: se vuelve a pedir para que aparezca tachado.
+        setErrorDeAccion(fallo);
         await recargarLaCarta();
+      } else {
+        setErrorDeAccion(fallo);
       }
     } finally {
       setOcupado(false);
@@ -218,8 +240,24 @@ export function TomaPedido() {
             <Aviso tono="err" titulo={errorDeAccion.titulo} texto={errorDeAccion.texto} />
           ) : null}
 
-          {errorDeLaCarta ? (
-            <Aviso tono="err" titulo={errorDeLaCarta.titulo} texto={errorDeLaCarta.texto} />
+          {cartaCaida ? (
+            <Aviso
+              tono="err"
+              titulo="La carta no está disponible en este momento"
+              texto={
+                unidades > 0
+                  ? 'Los platillos que ya están en la comanda se conservan y se pueden enviar a cocina.'
+                  : 'Intente de nuevo en un momento.'
+              }
+              accion={
+                <Boton
+                  texto="Reintentar"
+                  variante="tinta"
+                  disabled={reintentando}
+                  onClick={() => void reintentarLaCarta()}
+                />
+              }
+            />
           ) : (
             <Carta
               platillos={carta}
