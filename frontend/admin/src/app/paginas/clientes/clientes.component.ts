@@ -10,6 +10,7 @@ import { AvisoComponent } from '../../componentes/aviso.component';
 import { CampoComponent } from '../../componentes/campo.component';
 import { BotonComponent } from '../../componentes/boton.component';
 import { DrawerComponent } from '../../componentes/drawer.component';
+import { DialogoComponent } from '../../componentes/dialogo.component';
 
 /** Equivale a @NotBlank del backend: el texto no puede ser vacío ni solo espacios. */
 function noVacio(control: AbstractControl): ValidationErrors | null {
@@ -26,7 +27,8 @@ function noVacio(control: AbstractControl): ValidationErrors | null {
     AvisoComponent,
     CampoComponent,
     BotonComponent,
-    DrawerComponent
+    DrawerComponent,
+    DialogoComponent
   ],
   template: `
     <div class="adm-cab">
@@ -59,6 +61,7 @@ function noVacio(control: AbstractControl): ValidationErrors | null {
           <td>{{ reservasPorCliente()[c.id] ?? 0 }}</td>
           <td class="acc">
             <app-boton variante="texto" (accion)="editar(c)">Editar</app-boton>
+            <app-boton variante="texto-baja" (accion)="pedirEliminar(c)">Eliminar</app-boton>
           </td>
         </tr>
       }
@@ -99,11 +102,38 @@ function noVacio(control: AbstractControl): ValidationErrors | null {
           <small class="f-req">* Obligatorio</small>
         </form>
 
+        @if (editando()) {
+          <app-boton pie-izq variante="baja" (accion)="pedirEliminar(editando()!)">Eliminar</app-boton>
+        }
         <app-boton pie-der variante="texto" (accion)="cerrar()">Cancelar</app-boton>
         <app-boton pie-der variante="calor" [disabled]="guardando()" (accion)="guardar()">
           {{ editando() ? 'Guardar cambios' : 'Registrar cliente' }}
         </app-boton>
       </app-drawer>
+    }
+
+    @if (porEliminar()) {
+      <app-dialogo
+        [titulo]="'¿Eliminar a ' + porEliminar()!.nombre + '?'"
+        tipo="Acción irreversible"
+        [esDestructivo]="true"
+        (cerrar)="cancelarEliminar()">
+        <ul>
+          <li>Se borran su nombre, documento y teléfono.</li>
+          <li>Esta acción no se puede deshacer.</li>
+        </ul>
+        @if (errorEliminar()) {
+          <app-aviso tono="err" glifo="!" [titulo]="errorEliminar()!.titulo">
+            {{ errorEliminar()!.texto }}
+          </app-aviso>
+        }
+        <app-boton pie variante="tinta" (accion)="cancelarEliminar()">Volver</app-boton>
+        @if (!errorEliminar()) {
+          <app-boton pie variante="calor" [disabled]="eliminando()" (accion)="confirmarEliminar()">
+            Eliminar cliente
+          </app-boton>
+        }
+      </app-dialogo>
     }
   `
 })
@@ -128,6 +158,10 @@ export class ClientesComponent implements OnInit {
   guardando = signal(false);
   resumen = signal<{ titulo: string; texto: string } | null>(null);
   errorDocumentoSrv = signal<string | null>(null);
+
+  porEliminar = signal<ClienteDTO | null>(null);
+  eliminando = signal(false);
+  errorEliminar = signal<{ titulo: string; texto: string } | null>(null);
 
   busqueda = new FormControl('', { nonNullable: true });
 
@@ -271,6 +305,48 @@ export class ClientesComponent implements OnInit {
         } else {
           this.resumen.set({ titulo: err.titulo, texto: 'No se guardó nada todavía.' });
         }
+      }
+    });
+  }
+
+  pedirEliminar(cliente: ClienteDTO) {
+    this.exito.set(null);
+    this.errorEliminar.set(null);
+    this.porEliminar.set(cliente);
+  }
+
+  cancelarEliminar() {
+    this.porEliminar.set(null);
+    this.errorEliminar.set(null);
+  }
+
+  confirmarEliminar() {
+    const cliente = this.porEliminar();
+    if (!cliente || this.eliminando()) {
+      return;
+    }
+    this.eliminando.set(true);
+
+    this.api.delete<void>(`/api/clientes/${cliente.id}`).subscribe({
+      next: () => {
+        this.eliminando.set(false);
+        this.porEliminar.set(null);
+        this.drawerAbierto.set(false);
+        this.resaltadoId.set(null);
+        this.exito.set(`Cliente ${cliente.nombre} eliminado.`);
+        this.cargar();
+      },
+      error: (err) => {
+        this.eliminando.set(false);
+        // El diálogo se queda abierto con el motivo; solo queda «Volver».
+        this.errorEliminar.set(
+          err.status === 409
+            ? {
+                titulo: `No se puede eliminar a ${cliente.nombre}`,
+                texto: 'Tiene reservas asociadas. Elimine primero sus reservas.'
+              }
+            : { titulo: err.titulo, texto: 'No se eliminó nada.' }
+        );
       }
     });
   }
