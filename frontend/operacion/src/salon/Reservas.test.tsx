@@ -557,3 +557,96 @@ describe('el drawer de nueva reserva', () => {
     expect(container.querySelector('.f-velo > .f-drawer')).toBeInTheDocument();
   });
 });
+
+describe('los campos que rechaza el servidor', () => {
+  /** Deja el formulario correcto para que el envío llegue al servidor. */
+  async function llenarYEnviar(drawer: HTMLElement) {
+    fireEvent.change(within(drawer).getByLabelText(/Cliente/), { target: { value: '1' } });
+    fireEvent.change(within(drawer).getByLabelText(/Fecha/), { target: { value: '2026-12-24' } });
+    fireEvent.change(within(drawer).getByLabelText(/Hora/), { target: { value: '19:00' } });
+    fireEvent.change(within(drawer).getByLabelText(/Personas/), { target: { value: '4' } });
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Registrar reserva' }));
+  }
+
+  it('marca la fecha y la hora a la vez cuando el servidor rechaza fechaHora', async () => {
+    simularBackend({
+      reservas: () => json([]),
+      crear: () =>
+        json(
+          {
+            error: 'La petición tiene campos inválidos',
+            campos: { fechaHora: 'La fecha y hora son obligatorias' },
+          },
+          400,
+        ),
+    });
+    pintarConSesion();
+
+    const drawer = await abrirElDrawer();
+    await llenarYEnviar(drawer);
+
+    const abierto = await screen.findByRole('dialog', { name: 'Nueva reserva' });
+    const mensajes = within(abierto).getAllByText(/La fecha y hora son obligatorias/);
+    expect(mensajes).toHaveLength(2);
+    expect(within(abierto).getByLabelText(/Fecha/)).toHaveAttribute('aria-invalid', 'true');
+    expect(within(abierto).getByLabelText(/Hora/)).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('coloca cada mensaje bajo su campo y dice cuantos revisar', async () => {
+    simularBackend({
+      reservas: () => json([]),
+      crear: () =>
+        json(
+          {
+            error: 'La petición tiene campos inválidos',
+            campos: {
+              numPersonas: 'Debe ser al menos 1 persona',
+              clienteId: 'El cliente es obligatorio',
+            },
+          },
+          400,
+        ),
+    });
+    pintarConSesion();
+
+    const drawer = await abrirElDrawer();
+    await llenarYEnviar(drawer);
+
+    const abierto = await screen.findByRole('dialog', { name: 'Nueva reserva' });
+    expect(within(abierto).getByText('Revise 2 campos')).toBeInTheDocument();
+    expect(within(abierto).getByText(/Debe ser al menos 1 persona/)).toBeInTheDocument();
+    expect(within(abierto).getByText(/El cliente es obligatorio/)).toBeInTheDocument();
+    expect(within(abierto).getByText(/No se registró nada todavía/)).toBeInTheDocument();
+  });
+
+  it('el drawer se queda abierto y no pierde lo escrito', async () => {
+    simularBackend({
+      reservas: () => json([]),
+      crear: () =>
+        json({ error: 'La petición tiene campos inválidos', campos: { clienteId: 'malo' } }, 400),
+    });
+    pintarConSesion();
+
+    const drawer = await abrirElDrawer();
+    await llenarYEnviar(drawer);
+
+    const abierto = await screen.findByRole('dialog', { name: 'Nueva reserva' });
+    expect(within(abierto).getByLabelText(/Fecha/)).toHaveValue('2026-12-24');
+    expect(within(abierto).getByLabelText(/Personas/)).toHaveValue('4');
+  });
+
+  it('un rechazo sin campos se cuenta con el texto del servidor', async () => {
+    simularBackend({
+      reservas: () => json([]),
+      crear: () => json({ error: 'No se puede reservar para una fecha que ya pasó.' }, 400),
+    });
+    pintarConSesion();
+
+    const drawer = await abrirElDrawer();
+    await llenarYEnviar(drawer);
+
+    expect(
+      await screen.findByText('No se puede reservar para una fecha que ya pasó.'),
+    ).toBeInTheDocument();
+  });
+});

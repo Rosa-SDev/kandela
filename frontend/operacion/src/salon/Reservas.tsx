@@ -13,6 +13,7 @@ import { comoErrorKandela, get, patch, post } from '../nucleo/api';
 import { useSesion } from '../nucleo/sesion';
 import {
   cuerpoDeReserva,
+  erroresDelServidor,
   formularioVacio,
   validar,
   type CampoDeReserva,
@@ -219,8 +220,16 @@ export function Reservas() {
           'Queda pendiente de confirmar.',
       );
       setDrawerAbierto(false);
-    } catch (fallo) {
-      setResumen(comoErrorKandela(fallo));
+    } catch (error) {
+      const fallo = comoErrorKandela(error);
+      // Si el servidor dice qué campos están mal, se marcan uno por uno: el
+      // aviso de arriba dice cuántos son y cada campo dice lo suyo.
+      if (Object.keys(fallo.campos).length > 0) {
+        setErrores(erroresDelServidor(fallo.campos));
+        setResumen({ ...fallo, texto: 'No se registró nada todavía.' });
+      } else {
+        setResumen(fallo);
+      }
     } finally {
       setRegistrando(false);
     }
