@@ -25,6 +25,16 @@ public class ManejadorDeErrores {
         return Map.of("error", e.getMessage());
     }
 
+    /**
+     * Otro servicio no respondió. El mensaje explica cuál, para que la
+     * interfaz pueda ofrecer reintentar en vez de mostrar un error seco.
+     */
+    @ExceptionHandler(ServicioNoDisponibleException.class)
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    public Map<String, String> servicioNoDisponible(ServicioNoDisponibleException e) {
+        return Map.of("error", e.getMessage());
+    }
+
     @ExceptionHandler(HttpMessageNotReadableException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Map<String, String> jsonInvalido(HttpMessageNotReadableException e) {
