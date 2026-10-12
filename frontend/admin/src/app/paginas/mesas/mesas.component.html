@@ -1,0 +1,32 @@
+<div class="adm-cab">
+  <app-titulo texto="Mesas" [par]="mesas().length + ' en el salón'"></app-titulo>
+</div>
+
+@if (error()) {
+  <app-aviso
+    tono="err"
+    glifo="!"
+    [titulo]="error()!"
+    textoBoton="Reintentar"
+    (accion)="reintentar()">
+  </app-aviso>
+}
+
+<app-tabla
+  [columnas]="['Mesa', 'Capacidad', 'Estado', 'Ahora']"
+  [vacia]="!cargando() && !error() && filas().length === 0"
+  mensajeVacia="SIN MESAS">
+  @for (fila of filas(); track fila.mesa.id) {
+    <tr>
+      <td><b>Mesa {{ fila.mesa.numero }}</b></td>
+      <td>{{ fila.mesa.capacidad }} personas</td>
+      <td>
+        <app-estado
+          [glifo]="etiqueta[fila.clave].glifo"
+          [texto]="etiqueta[fila.clave].texto">
+        </app-estado>
+      </td>
+      <td>{{ fila.ahora }}</td>
+    </tr>
+  }
+</app-tabla>
