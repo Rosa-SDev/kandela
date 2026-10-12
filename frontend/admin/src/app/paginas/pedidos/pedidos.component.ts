@@ -6,7 +6,10 @@ import { TituloComponent } from '../../componentes/titulo.component';
 import { FiltrosComponent } from '../../componentes/filtros.component';
 import { AvisoComponent } from '../../componentes/aviso.component';
 import { EstadoComponent } from '../../componentes/estado.component';
+import { BotonComponent } from '../../componentes/boton.component';
+import { DrawerComponent } from '../../componentes/drawer.component';
 import { esPedidoActivo } from '../mesas/estado-de-mesa';
+import { ComandaComponent } from './comanda.component';
 import { PedidosService } from './pedidos.service';
 import { ETIQUETA_PEDIDO, dinero } from './estado-de-pedido';
 
@@ -47,7 +50,10 @@ const GRUPOS: Record<Grupo, (pedido: PedidoDTO) => boolean> = {
     TituloComponent,
     FiltrosComponent,
     AvisoComponent,
-    EstadoComponent
+    EstadoComponent,
+    BotonComponent,
+    DrawerComponent,
+    ComandaComponent
   ],
   templateUrl: './pedidos.component.html'
 })
@@ -64,6 +70,9 @@ export class PedidosComponent implements OnInit {
   grupo = signal<Grupo>('activos');
 
   etiqueta = ETIQUETA_PEDIDO;
+
+  /** El pedido que se está mirando en el drawer, con su mesero ya resuelto. */
+  verPedido = signal<FilaDePedido | null>(null);
 
   cuantos = computed(() => {
     const pedidos = this.pedidos();
@@ -118,6 +127,15 @@ export class PedidosComponent implements OnInit {
 
   esActivo(pedido: PedidoDTO): boolean {
     return esPedidoActivo(pedido);
+  }
+
+  ver(fila: FilaDePedido) {
+    this.exito.set(null);
+    this.verPedido.set(fila);
+  }
+
+  cerrarDrawer() {
+    this.verPedido.set(null);
   }
 
   private cargar() {

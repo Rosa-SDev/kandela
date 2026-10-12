@@ -29,6 +29,7 @@
       <th>Estado</th>
       <th class="n">Platillos</th>
       <th class="n">Consumo</th>
+      <th class="acc"></th>
     </tr>
   </thead>
   <tbody>
@@ -46,11 +47,14 @@
         </td>
         <td class="n">{{ fila.unidades }}</td>
         <td class="n">{{ fila.consumo }}</td>
+        <td class="acc">
+          <app-boton variante="texto" (accion)="ver(fila)">Ver</app-boton>
+        </td>
       </tr>
     }
     @if (!cargando() && !error() && filas().length === 0) {
       <tr>
-        <td colspan="6" class="vacia">
+        <td colspan="7" class="vacia">
           SIN PEDIDOS
           <br /><span>(en este grupo)</span>
         </td>
@@ -58,3 +62,15 @@
     }
   </tbody>
 </table>
+
+@if (verPedido()) {
+  <app-drawer
+    [titulo]="'Pedido #' + verPedido()!.pedido.id"
+    [par]="verPedido()!.destino"
+    (cerrar)="cerrarDrawer()">
+    <app-comanda [pedido]="verPedido()!.pedido"></app-comanda>
+    <p class="f-req">Mesero: {{ verPedido()!.mesero }}</p>
+
+    <app-boton pie-der variante="tinta" (accion)="cerrarDrawer()">Cerrar</app-boton>
+  </app-drawer>
+}
