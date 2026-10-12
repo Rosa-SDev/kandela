@@ -59,6 +59,7 @@ function json(cuerpo: unknown, status = 200): Response {
 
 interface Respuestas {
   pedido?: () => Response | Promise<Response>;
+  estado?: () => Response | Promise<Response>;
   carta?: () => Response | Promise<Response>;
   mesa?: () => Response | Promise<Response>;
   agregar?: () => Response | Promise<Response>;
@@ -76,6 +77,9 @@ function simularBackend(respuestas: Respuestas = {}) {
       }
       if (url.startsWith('/api/pedidos/12/platillos/') && metodo === 'DELETE') {
         return Promise.resolve((respuestas.quitar ?? (() => new Response(null, { status: 204 })))());
+      }
+      if (url === '/api/pedidos/12/estado' && metodo === 'PATCH') {
+        return Promise.resolve((respuestas.estado ?? (() => json(pedido({ estado: 'EN_COCINA' }))))());
       }
       if (url === '/api/pedidos/12' && metodo === 'PATCH') {
         return Promise.resolve((respuestas.nota ?? (() => json(pedido())))());
@@ -269,6 +273,117 @@ describe('TomaPedido', () => {
     pintarToma();
 
     expect(await screen.findByText('Enviar a cocina')).toBeDisabled();
+  });
+
+  it('enviar guarda primero la nota pendiente y despues cambia el estado', async () => {
+    simularBackend();
+    pintarToma();
+
+    const nota = await screen.findByLabelText('Nota para cocina');
+    fireEvent.change(nota, { target: { value: 'Sin aguacate. Chicharrón crocante.' } });
+    fireEvent.click(screen.getByText('Enviar a cocina'));
+
+    await waitFor(() => expect(llamadas('/api/pedidos/12/estado', 'PATCH')).toHaveLength(1));
+
+    // El orden importa: la cocina tiene que recibir la comanda con su nota.
+    const rutas = (fetch as unknown as { mock: { calls: [string, RequestInit?][] } }).mock.calls
+      .filter(([, opciones]) => opciones?.method === 'PATCH')
+      .map(([url]) => url);
+    expect(rutas).toEqual(['/api/pedidos/12', '/api/pedidos/12/estado']);
+
+    const [, opciones] = llamadas('/api/pedidos/12/estado', 'PATCH')[0];
+    expect(JSON.parse(String(opciones?.body))).toEqual({ estado: 'EN_COCINA' });
+  });
+
+  it('si la nota no se puede guardar, la comanda no se envia', async () => {
+    simularBackend({
+      nota: () =>
+        json(
+          {
+            error: 'La petición tiene campos inválidos',
+            campos: { observaciones: 'La nota no puede tener más de 255 caracteres.' },
+          },
+          400,
+        ),
+    });
+    pintarToma();
+
+    const nota = await screen.findByLabelText('Nota para cocina');
+    fireEvent.change(nota, { target: { value: 'a'.repeat(256) } });
+    fireEvent.click(screen.getByText('Enviar a cocina'));
+
+    expect(
+      await screen.findByText('! La nota no puede tener más de 255 caracteres.'),
+    ).toBeInTheDocument();
+    expect(llamadas('/api/pedidos/12/estado', 'PATCH')).toHaveLength(0);
+  });
+
+  it('despues de enviar, la comanda queda bloqueada', async () => {
+    simularBackend();
+    pintarToma();
+
+    fireEvent.click(await screen.findByText('Enviar a cocina'));
+
+    expect(
+      await screen.findByText('Comanda enviada a cocina: ya no se pueden agregar platillos.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText('Nota para cocina')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Cantidad de Bandeja paisa')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Agregar Bandeja paisa')).toBeDisabled();
+    expect(screen.getByText('Volver al salón')).toBeInTheDocument();
+    expect(screen.queryByText('Enviar a cocina')).not.toBeInTheDocument();
+  });
+
+  it('entrar a un pedido ya enviado lo muestra bloqueado desde el principio', async () => {
+    simularBackend({ pedido: () => json(pedido({ estado: 'EN_COCINA' })) });
+    pintarToma();
+
+    expect(
+      await screen.findByText('Comanda enviada a cocina: ya no se pueden agregar platillos.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Volver al salón')).toBeInTheDocument();
+    expect(screen.getByLabelText('Agregar Bandeja paisa')).toBeDisabled();
+  });
+
+  it('dos toques en enviar solo cambian el estado una vez', async () => {
+    let soltar: (r: Response) => void = () => {};
+    simularBackend({
+      estado: () =>
+        new Promise<Response>((resolver) => {
+          soltar = resolver;
+        }),
+    });
+    pintarToma();
+
+    const enviar = await screen.findByText('Enviar a cocina');
+    fireEvent.click(enviar);
+    await waitFor(() => expect(enviar).toBeDisabled());
+    fireEvent.click(enviar);
+
+    soltar(json(pedido({ estado: 'EN_COCINA' })));
+    await waitFor(() => expect(llamadas('/api/pedidos/12/estado', 'PATCH')).toHaveLength(1));
+  });
+
+  it('si el estado responde conflicto se avisa y se vuelve a pedir el pedido', async () => {
+    // El pedido llega abierto; lo cobraron por otro lado mientras tanto.
+    let yaChoco = false;
+    simularBackend({
+      estado: () => {
+        yaChoco = true;
+        return json({ error: 'No se puede modificar un pedido ya pagado.' }, 409);
+      },
+      pedido: () => json(pedido({ estado: yaChoco ? 'PAGADO' : 'ABIERTO' })),
+    });
+    pintarToma();
+
+    fireEvent.click(await screen.findByText('Enviar a cocina'));
+
+    expect(await screen.findByText('No se puede modificar un pedido ya pagado.')).toBeInTheDocument();
+    // La pantalla queda con lo que de verdad dice el servidor.
+    await waitFor(() =>
+      expect(screen.getByText('Pedido cobrado: ya no se pueden agregar platillos.')).toBeInTheDocument(),
+    );
+    expect(llamadas('/api/pedidos/12', 'GET').length).toBeGreaterThan(1);
   });
 
   it('volver al salon lleva al plano', async () => {

@@ -259,10 +259,10 @@ function DetalleDeMesa({ mesa, estado, abriendo, error, onAbrirPedido, onTomarPe
         />
       ) : null}
 
-      {estado.clave === 'ocupada' && estado.pedido.estado === 'ABIERTO' ? (
+      {estado.clave === 'ocupada' ? (
         <Boton
-          texto="Tomar pedido"
-          variante="calor"
+          texto={estado.pedido.estado === 'ABIERTO' ? 'Tomar pedido' : 'Ver comanda'}
+          variante={estado.pedido.estado === 'ABIERTO' ? 'calor' : 'tinta'}
           ancho
           onClick={() => onTomarPedido(estado.pedido)}
         />

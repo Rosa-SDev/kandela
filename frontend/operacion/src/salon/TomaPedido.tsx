@@ -40,6 +40,7 @@ export function TomaPedido() {
   // Candado: con una petición en camino, «+» y «−» quedan quietos. Si no, dos
   // respuestas podrían llegar en desorden y la vieja pisaría a la nueva.
   const [ocupado, setOcupado] = useState(false);
+  const [enviando, setEnviando] = useState(false);
 
   const cargar = useCallback(async () => {
     const [delPedido, deLaCarta] = await Promise.allSettled([
@@ -153,6 +154,37 @@ export function TomaPedido() {
     }
   }
 
+  /**
+   * Manda la comanda a la cocina.
+   *
+   * Primero se guarda la nota que el mesero pueda tener a medio escribir: si
+   * se enviara antes, la cocina recibiría la comanda sin ella y el pedido ya
+   * no admitiría cambios. Si la nota no se puede guardar, no se envía nada.
+   */
+  async function enviar() {
+    if (enviando || !pedido) {
+      return;
+    }
+    setEnviando(true);
+    setErrorDeAccion(null);
+    try {
+      if (!(await guardarLaNota())) {
+        return;
+      }
+      setPedido(await patch<PedidoDTO>(`/pedidos/${pedido.id}/estado`, { estado: 'EN_COCINA' }));
+    } catch (error) {
+      const fallo = comoError(error);
+      setErrorDeAccion(fallo);
+      // Un conflicto quiere decir que el pedido ya no está donde la pantalla
+      // creía: se vuelve a pedir para mostrar lo que de verdad pasó.
+      if (fallo.status === 409) {
+        await cargar();
+      }
+    } finally {
+      setEnviando(false);
+    }
+  }
+
   if (errorDelPedido) {
     return (
       <div className="salon-toma">
@@ -201,7 +233,7 @@ export function TomaPedido() {
         <aside className="toma-comanda" aria-label="Comanda">
           <Comanda
             pedido={pedido}
-            variante="editable"
+            variante={abierto ? 'editable' : 'bloqueada'}
             bloqueado={ocupado}
             nota={borradorDeNota}
             errorNota={errorDeNota}
@@ -214,7 +246,24 @@ export function TomaPedido() {
               }
             }}
             onMenos={(platilloId) => void quitar(platilloId)}
-            pie={<Boton texto="Enviar a cocina" variante="calor" ancho disabled={unidades === 0} />}
+            pie={
+              abierto ? (
+                <Boton
+                  texto="Enviar a cocina"
+                  variante="calor"
+                  ancho
+                  disabled={unidades === 0 || enviando}
+                  onClick={() => void enviar()}
+                />
+              ) : (
+                <Boton
+                  texto="Volver al salón"
+                  variante="tinta"
+                  ancho
+                  onClick={() => navegar('/salon')}
+                />
+              )
+            }
           />
         </aside>
       </div>

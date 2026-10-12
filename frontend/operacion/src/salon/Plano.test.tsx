@@ -271,14 +271,16 @@ describe('Plano', () => {
     expect(await screen.findByText('Toma del pedido 12')).toBeInTheDocument();
   });
 
-  it('una mesa con el pedido ya enviado todavia no ofrece verlo', async () => {
+  it('una mesa con el pedido ya enviado ofrece ver la comanda', async () => {
     simularBackend({});
     pintarPlano();
 
     fireEvent.click(await screen.findByLabelText('Mesa 1: ocupada, en cocina'));
 
     expect(screen.queryByText('Tomar pedido')).not.toBeInTheDocument();
-    expect(screen.queryByText('Ver comanda')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Ver comanda'));
+
+    expect(await screen.findByText('Toma del pedido 7')).toBeInTheDocument();
   });
 
   it('una mesa reservada tambien se puede abrir', async () => {
