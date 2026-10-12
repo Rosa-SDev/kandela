@@ -4,6 +4,8 @@ import { RutaConRol } from './nucleo/RutaConRol';
 import { SalonShell } from './salon/SalonShell';
 import { SesionProveedor, useSesion } from './nucleo/sesion';
 
+import { CocinaShell } from './cocina/CocinaShell';
+
 function Inicio() {
   const { usuario } = useSesion();
   if (usuario?.rol === 'MESERO') return <Navigate to="/salon" replace />;
@@ -14,10 +16,6 @@ function Inicio() {
 
 function CajaShell() {
   return <div className="sh" data-densidad="tactil" data-superficie="arcilla" />;
-}
-
-function CocinaShell() {
-  return <div className="sh" data-densidad="pared" data-superficie="tablero" />;
 }
 
 function App() {
