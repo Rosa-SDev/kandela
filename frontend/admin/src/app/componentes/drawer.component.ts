@@ -26,7 +26,21 @@ import { Component, input, output, ElementRef, ViewChild, AfterViewInit, HostLis
         </div>
       </div>
     </div>
-  `
+  `,
+  styles: [`
+    :host {
+      display: contents;
+    }
+    .f-velo {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: rgba(58, 26, 34, 0.45);
+    }
+    .f-drawer {
+      box-shadow: -10px 0 30px rgba(30, 21, 23, 0.25);
+    }
+  `]
 })
 export class DrawerComponent implements AfterViewInit {
   titulo = input.required<string>();
@@ -36,7 +50,6 @@ export class DrawerComponent implements AfterViewInit {
   @ViewChild('drawerPanel') panel!: ElementRef<HTMLDivElement>;
 
   ngAfterViewInit() {
-    // Llevar el foco adentro al abrirse
     this.panel.nativeElement.focus();
   }
 
