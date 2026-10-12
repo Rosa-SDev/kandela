@@ -650,3 +650,120 @@ describe('los campos que rechaza el servidor', () => {
     ).toBeInTheDocument();
   });
 });
+
+describe('el conflicto de capacidad de la mesa', () => {
+  /** Pide la mesa 2, que tiene cuatro puestos, para seis personas. */
+  async function pedirSeisEnLaMesaDeCuatro(drawer: HTMLElement) {
+    fireEvent.change(within(drawer).getByLabelText(/Cliente/), { target: { value: '1' } });
+    fireEvent.change(within(drawer).getByLabelText(/Fecha/), { target: { value: '2026-12-24' } });
+    fireEvent.change(within(drawer).getByLabelText(/Hora/), { target: { value: '21:00' } });
+    fireEvent.change(within(drawer).getByLabelText(/Personas/), { target: { value: '6' } });
+    fireEvent.change(within(drawer).getByLabelText(/^Mesa/), { target: { value: '2' } });
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Registrar reserva' }));
+  }
+
+  it('la pantalla no se adelanta: la peticion sale y el servidor decide', async () => {
+    simularBackend({ reservas: () => json([]) });
+    pintarConSesion();
+
+    const drawer = await abrirElDrawer();
+    await pedirSeisEnLaMesaDeCuatro(drawer);
+
+    await waitFor(() => expect(reservasEnviadas()).toHaveLength(1));
+    expect(reservasEnviadas()[0]).toMatchObject({ numPersonas: 6, mesaId: 2 });
+  });
+
+  it('muestra el mensaje del servidor y marca el campo de la mesa', async () => {
+    simularBackend({
+      reservas: () => json([]),
+      crear: () =>
+        json(
+          { error: 'La mesa 2 no alcanza para 6 personas. Su capacidad es de 4.' },
+          409,
+        ),
+    });
+    pintarConSesion();
+
+    const drawer = await abrirElDrawer();
+    await pedirSeisEnLaMesaDeCuatro(drawer);
+
+    const abierto = await screen.findByRole('dialog', { name: 'Nueva reserva' });
+    expect(
+      within(abierto).getByText('La mesa 2 no alcanza para 6 personas. Su capacidad es de 4.'),
+    ).toBeInTheDocument();
+    expect(within(abierto).getByText(/Elija otra mesa o déjela sin asignar/)).toBeInTheDocument();
+    expect(within(abierto).getByText(/Revise este campo/)).toBeInTheDocument();
+    expect(within(abierto).getByLabelText(/^Mesa/)).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('al dejar la mesa sin asignar el conflicto desaparece y se registra', async () => {
+    let conflicto = true;
+    simularBackend({
+      reservas: () => json([]),
+      crear: () => {
+        if (conflicto) {
+          conflicto = false;
+          return json({ error: 'La mesa 2 no alcanza para 6 personas. Su capacidad es de 4.' }, 409);
+        }
+        return json({ ...DE_ANA, numPersonas: 6, mesaId: null }, 201);
+      },
+    });
+    pintarConSesion();
+
+    const drawer = await abrirElDrawer();
+    await pedirSeisEnLaMesaDeCuatro(drawer);
+    await screen.findByText(/no alcanza para 6 personas/);
+
+    fireEvent.change(within(drawer).getByLabelText(/^Mesa/), { target: { value: '' } });
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Registrar reserva' }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Nueva reserva' })).not.toBeInTheDocument(),
+    );
+    expect(reservasEnviadas()[1]).not.toHaveProperty('mesaId');
+  });
+
+  it('un cliente o una mesa que no existen se cuentan con el texto del servidor', async () => {
+    simularBackend({
+      reservas: () => json([]),
+      crear: () => json({ error: 'La mesa 9 no existe.' }, 404),
+    });
+    pintarConSesion();
+
+    const drawer = await abrirElDrawer();
+    await pedirSeisEnLaMesaDeCuatro(drawer);
+
+    expect(await screen.findByText('La mesa 9 no existe.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument();
+  });
+
+  it('si el salon no responde ofrece reintentar el mismo envio', async () => {
+    let caido = true;
+    simularBackend({
+      reservas: () => json([]),
+      crear: () => {
+        if (caido) {
+          caido = false;
+          return json({ error: 'El salón no está disponible en este momento.' }, 503);
+        }
+        return json(DE_ANA, 201);
+      },
+    });
+    pintarConSesion();
+
+    const drawer = await abrirElDrawer();
+    await pedirSeisEnLaMesaDeCuatro(drawer);
+
+    const abierto = await screen.findByRole('dialog', { name: 'Nueva reserva' });
+    expect(
+      within(abierto).getByText('El salón no está disponible en este momento.'),
+    ).toBeInTheDocument();
+
+    fireEvent.click(within(abierto).getByRole('button', { name: 'Reintentar' }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Nueva reserva' })).not.toBeInTheDocument(),
+    );
+    expect(reservasEnviadas()).toHaveLength(2);
+  });
+});

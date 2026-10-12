@@ -227,6 +227,14 @@ export function Reservas() {
       if (Object.keys(fallo.campos).length > 0) {
         setErrores(erroresDelServidor(fallo.campos));
         setResumen({ ...fallo, texto: 'No se registró nada todavía.' });
+      } else if (fallo.status === 409) {
+        // El único conflicto al registrar es que la mesa elegida no alcance
+        // para esa cantidad de gente. Lo decide el servicio de reservas tras
+        // preguntarle al del salón por la capacidad, y su mensaje ya dice
+        // cuántos puestos tiene; aquí solo se añade qué hacer y se marca el
+        // campo que hay que cambiar.
+        setErrores({ mesa: 'Revise este campo.' });
+        setResumen({ ...fallo, texto: 'Elija otra mesa o déjela sin asignar.' });
       } else {
         setResumen(fallo);
       }
@@ -341,7 +349,23 @@ export function Reservas() {
           cuerpo={
             <>
               {resumen ? (
-                <Aviso tono="err" titulo={resumen.titulo} texto={resumen.texto} />
+                <Aviso
+                  tono="err"
+                  titulo={resumen.titulo}
+                  texto={resumen.texto}
+                  accion={
+                    // Un servicio caído no es culpa de lo que se escribió: se
+                    // ofrece reenviar lo mismo en vez de pedirlo otra vez.
+                    resumen.status !== null && resumen.status >= 500 ? (
+                      <Boton
+                        texto="Reintentar"
+                        variante="tinta"
+                        disabled={registrando}
+                        onClick={() => void registrar()}
+                      />
+                    ) : undefined
+                  }
+                />
               ) : null}
 
               <Campo
