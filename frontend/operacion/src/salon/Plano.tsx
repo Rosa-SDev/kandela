@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
 import type { MesaDTO, PedidoDTO, ReservaDTO } from '@compartido/api/tipos';
 import type { ErrorKandela } from '@compartido/api/errores';
 import { Aviso } from '../componentes/Aviso';
@@ -45,6 +46,7 @@ export function Plano() {
   const [abriendo, setAbriendo] = useState(false);
   const [errorDeApertura, setErrorDeApertura] = useState<ErrorKandela | null>(null);
   const { usuario } = useSesion();
+  const navegar = useNavigate();
 
   // Nada de setState antes del await: dentro de un efecto eso encadena renders.
   const cargar = useCallback(async () => {
@@ -109,8 +111,8 @@ export function Plano() {
     setAbriendo(true);
     setErrorDeApertura(null);
     try {
-      await post<PedidoDTO>('/pedidos', { mesaId: mesa.id, meseroId: usuario.id });
-      await cargar();
+      const creado = await post<PedidoDTO>('/pedidos', { mesaId: mesa.id, meseroId: usuario.id });
+      navegar(`/salon/pedido/${creado.id}`);
     } catch (error) {
       setErrorDeApertura(comoError(error));
     } finally {
@@ -194,6 +196,7 @@ export function Plano() {
             abriendo={abriendo}
             error={errorDeApertura}
             onAbrirPedido={abrirPedido}
+            onTomarPedido={(pedido) => navegar(`/salon/pedido/${pedido.id}`)}
           />
         ) : null}
       </aside>
@@ -207,6 +210,7 @@ interface DetalleProps {
   abriendo: boolean;
   error: ErrorKandela | null;
   onAbrirPedido: (mesa: MesaDTO) => void;
+  onTomarPedido: (pedido: PedidoDTO) => void;
 }
 
 /**
@@ -216,7 +220,7 @@ interface DetalleProps {
  * va en tinta y no en ladrillo: abrirlo ahí es una decisión más deliberada que
  * sentar a alguien en una mesa libre.
  */
-function DetalleDeMesa({ mesa, estado, abriendo, error, onAbrirPedido }: DetalleProps) {
+function DetalleDeMesa({ mesa, estado, abriendo, error, onAbrirPedido, onTomarPedido }: DetalleProps) {
   return (
     <>
       <Titulo texto={`Mesa ${mesa.numero}`} par={`${mesa.capacidad} personas`} nivel={2} />
@@ -252,6 +256,15 @@ function DetalleDeMesa({ mesa, estado, abriendo, error, onAbrirPedido }: Detalle
           ancho
           disabled={abriendo}
           onClick={() => onAbrirPedido(mesa)}
+        />
+      ) : null}
+
+      {estado.clave === 'ocupada' && estado.pedido.estado === 'ABIERTO' ? (
+        <Boton
+          texto="Tomar pedido"
+          variante="calor"
+          ancho
+          onClick={() => onTomarPedido(estado.pedido)}
         />
       ) : null}
     </>

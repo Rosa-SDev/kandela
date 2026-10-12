@@ -31,6 +31,8 @@ export interface LineaPedidoEditableProps {
   importe: number;
   onMenos: () => void;
   onMas: () => void;
+  /** Mientras hay una petición en camino, la cantidad no se puede volver a tocar. */
+  bloqueado?: boolean;
 }
 
 /** La misma fila mientras el pedido sigue abierto: con el paso para cambiar la cantidad. */
@@ -41,6 +43,7 @@ export function LineaPedidoEditable({
   importe,
   onMenos,
   onMas,
+  bloqueado = false,
 }: LineaPedidoEditableProps) {
   return (
     <div className="f-linea">
@@ -48,7 +51,14 @@ export function LineaPedidoEditable({
         {nombre}
         <small className="num">{dinero(precioUnitario)} c/u</small>
       </span>
-      <Paso valor={cantidad} nombre={nombre} onMenos={onMenos} onMas={onMas} />
+      <Paso
+        valor={cantidad}
+        nombre={nombre}
+        onMenos={onMenos}
+        onMas={onMas}
+        disabledMenos={bloqueado}
+        disabledMas={bloqueado}
+      />
       <span className="f-linea__m">{dinero(importe)}</span>
     </div>
   );

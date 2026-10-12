@@ -2,6 +2,7 @@ import { Route, Routes, useNavigate } from 'react-router';
 import { BarraRol } from '../componentes/BarraRol';
 import { useSesion } from '../nucleo/sesion';
 import { Plano } from './Plano';
+import { TomaPedido } from './TomaPedido';
 
 /**
  * La interfaz del mesero.
@@ -36,6 +37,7 @@ export function SalonShell() {
       <div className="sh-cuerpo">
         <Routes>
           <Route index element={<Plano />} />
+          <Route path="pedido/:id" element={<TomaPedido />} />
         </Routes>
       </div>
     </div>

@@ -33,6 +33,8 @@ export interface ComandaProps {
   errorNota?: string;
   onMenos?: (platilloId: number) => void;
   onMas?: (platilloId: number) => void;
+  /** Bloquea el paso de cantidad mientras una petición está en camino. */
+  bloqueado?: boolean;
 }
 
 /** Ámbar a los 10 minutos, rojo a los 15, como en el tablero de cocina. */
@@ -75,6 +77,7 @@ export function Comanda({
   errorNota,
   onMenos,
   onMas,
+  bloqueado = false,
 }: ComandaProps) {
   const editable = variante === 'editable';
   const pared = variante === 'pared';
@@ -140,6 +143,7 @@ export function Comanda({
               importe={linea.importe}
               onMenos={() => onMenos?.(linea.platilloId)}
               onMas={() => onMas?.(linea.platilloId)}
+              bloqueado={bloqueado}
             />
           ) : (
             <LineaPedido

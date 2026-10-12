@@ -134,6 +134,49 @@
    flex: none
 }
 
+/* ---- Toma de pedido ---- */
+.salon-toma {
+   flex: 1;
+   min-height: 0;
+   display: flex;
+   flex-direction: column
+}
+
+.toma-cab {
+   flex: none;
+   display: flex;
+   align-items: center;
+   gap: var(--s4);
+   padding: var(--s4) var(--s6) 0
+}
+
+.toma-cuerpo {
+   flex: 1;
+   min-height: 0;
+   display: grid;
+   grid-template-columns: minmax(0, 1fr) 420px;
+   gap: var(--s6);
+   padding: var(--s4) var(--s6) var(--s6)
+}
+
+.toma-carta {
+   overflow: auto;
+   min-height: 0;
+   display: grid;
+   gap: var(--s4);
+   align-content: start
+}
+
+.toma-comanda {
+   display: flex;
+   flex-direction: column;
+   min-height: 0
+}
+
+.toma-comanda .f-comanda {
+   flex: 1
+}
+
 /* ---- Móvil ---- */
 @media (max-width: 600px) {
    .login__col .f-titulo {

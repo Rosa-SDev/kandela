@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter, Route, Routes, useParams } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { MesaDTO, PedidoDTO, ReservaDTO } from '@compartido/api/tipos';
 import { SesionProveedor } from '../nucleo/sesion';
@@ -51,13 +52,24 @@ const MESERO = {
   activo: true,
 };
 
-/** El plano necesita saber quién tiene la sesión para abrir pedidos a su nombre. */
+/** Señuelo de la toma de pedido, para comprobar a dónde navega el plano. */
+function TomaSenuelo() {
+  const { id } = useParams();
+  return <p>Toma del pedido {id}</p>;
+}
+
+/** El plano necesita la sesión, para abrir pedidos a nombre del mesero, y el enrutador. */
 function pintarPlano() {
   sessionStorage.setItem('kandela.sesion', JSON.stringify(MESERO));
   return render(
-    <SesionProveedor>
-      <Plano />
-    </SesionProveedor>,
+    <MemoryRouter initialEntries={['/salon']}>
+      <SesionProveedor>
+        <Routes>
+          <Route path="/salon" element={<Plano />} />
+          <Route path="/salon/pedido/:id" element={<TomaSenuelo />} />
+        </Routes>
+      </SesionProveedor>
+    </MemoryRouter>,
   );
 }
 
@@ -68,6 +80,14 @@ function cuerposEnviadosA(ruta: string): unknown[] {
     .filter(([url, opciones]) => url === ruta && opciones?.method === 'POST')
     .map(([, opciones]) => JSON.parse(String(opciones?.body)));
 }
+
+const PEDIDO_ABIERTO: PedidoDTO = {
+  ...PEDIDO_EN_COCINA,
+  id: 12,
+  estado: 'ABIERTO',
+  mesaId: 3,
+  mesaNumero: 3,
+};
 
 interface Respuestas {
   mesas?: () => Response | Promise<Response>;
@@ -229,6 +249,36 @@ describe('Plano', () => {
       mesaId: libre.id,
       meseroId: MESERO.id,
     });
+  });
+
+  it('al abrir el pedido se entra a tomarlo', async () => {
+    simularBackend({ crearPedido: () => json({ ...PEDIDO_ABIERTO, id: 99 }, 201) });
+    pintarPlano();
+
+    fireEvent.click(await screen.findByLabelText('Mesa 3: libre'));
+    fireEvent.click(screen.getByText('Abrir pedido'));
+
+    expect(await screen.findByText('Toma del pedido 99')).toBeInTheDocument();
+  });
+
+  it('una mesa con el pedido abierto ofrece tomarlo', async () => {
+    simularBackend({ pedidos: () => json([PEDIDO_EN_COCINA, PEDIDO_ABIERTO]) });
+    pintarPlano();
+
+    fireEvent.click(await screen.findByLabelText('Mesa 3: ocupada, sin enviar a cocina'));
+    fireEvent.click(screen.getByText('Tomar pedido'));
+
+    expect(await screen.findByText('Toma del pedido 12')).toBeInTheDocument();
+  });
+
+  it('una mesa con el pedido ya enviado todavia no ofrece verlo', async () => {
+    simularBackend({});
+    pintarPlano();
+
+    fireEvent.click(await screen.findByLabelText('Mesa 1: ocupada, en cocina'));
+
+    expect(screen.queryByText('Tomar pedido')).not.toBeInTheDocument();
+    expect(screen.queryByText('Ver comanda')).not.toBeInTheDocument();
   });
 
   it('una mesa reservada tambien se puede abrir', async () => {
