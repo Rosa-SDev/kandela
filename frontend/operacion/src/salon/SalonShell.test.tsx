@@ -50,14 +50,14 @@ describe('la barra del salón', () => {
     pintar('/salon');
 
     const arriba = within(barraDeArriba()).getAllByRole('button');
-    expect(arriba.map((boton) => boton.textContent)).toEqual(['Salón', 'Mis pedidos', 'Carta']);
+    expect(arriba.map((boton) => boton.textContent)).toEqual(['Salón', 'Mis pedidos', 'Reservas', 'Carta']);
   });
 
   it('acorta los nombres en la barra inferior, que tiene menos sitio', () => {
     pintar('/salon');
 
     const abajo = within(barraDeAbajo()).getAllByRole('button');
-    expect(abajo.map((boton) => boton.textContent)).toEqual(['Salón', 'Pedidos', 'Carta']);
+    expect(abajo.map((boton) => boton.textContent)).toEqual(['Salón', 'Pedidos', 'Reservas', 'Carta']);
   });
 
   it('marca la seccion en la que esta el mesero', () => {
