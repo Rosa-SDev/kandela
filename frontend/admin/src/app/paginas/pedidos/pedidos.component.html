@@ -1,0 +1,111 @@
+<div class="adm-cab">
+  <app-titulo texto="Pedidos" [par]="cuantos().activos + ' activos'"></app-titulo>
+</div>
+
+<div class="adm-herr">
+  <app-filtros [items]="filtros()" [activo]="grupo()" (seleccion)="elegir($event)"></app-filtros>
+</div>
+
+@if (error()) {
+  <app-aviso
+    tono="err"
+    glifo="!"
+    [titulo]="error()!"
+    textoBoton="Reintentar"
+    (accion)="reintentar()">
+  </app-aviso>
+}
+
+@if (exito()) {
+  <app-aviso glifo="✓" [titulo]="exito()!"></app-aviso>
+}
+
+<table class="f-tabla">
+  <thead>
+    <tr>
+      <th>Pedido</th>
+      <th>Destino</th>
+      <th>Mesero</th>
+      <th>Estado</th>
+      <th class="n">Platillos</th>
+      <th class="n">Consumo</th>
+      <th class="acc"></th>
+    </tr>
+  </thead>
+  <tbody>
+    @for (fila of filas(); track fila.pedido.id) {
+      <tr [class.apagada]="fila.pedido.estado === 'CANCELADO'">
+        <td><span class="mono">#{{ fila.pedido.id }}</span></td>
+        <td><b>{{ fila.destino }}</b></td>
+        <td>{{ fila.mesero }}</td>
+        <td>
+          <app-estado
+            [glifo]="etiqueta[fila.pedido.estado].glifo"
+            [texto]="etiqueta[fila.pedido.estado].texto"
+            [tono]="etiqueta[fila.pedido.estado].tono">
+          </app-estado>
+        </td>
+        <td class="n">{{ fila.unidades }}</td>
+        <td class="n">{{ fila.consumo }}</td>
+        <td class="acc">
+          <app-boton variante="texto" (accion)="ver(fila)">Ver</app-boton>
+          @if (esActivo(fila.pedido)) {
+            <app-boton variante="texto-baja" (accion)="pedirCancelar(fila)">Cancelar</app-boton>
+          }
+        </td>
+      </tr>
+    }
+    @if (!cargando() && !error() && filas().length === 0) {
+      <tr>
+        <td colspan="7" class="vacia">
+          SIN PEDIDOS
+          <br /><span>(en este grupo)</span>
+        </td>
+      </tr>
+    }
+  </tbody>
+</table>
+
+@if (verPedido()) {
+  <app-drawer
+    [titulo]="'Pedido #' + verPedido()!.pedido.id"
+    [par]="verPedido()!.destino"
+    (cerrar)="cerrarDrawer()">
+    <app-comanda [pedido]="verPedido()!.pedido"></app-comanda>
+    <p class="f-req">Mesero: {{ verPedido()!.mesero }}</p>
+
+    @if (esActivo(verPedido()!.pedido)) {
+      <app-boton pie-izq variante="baja" (accion)="pedirCancelar(verPedido()!)">
+        Cancelar pedido
+      </app-boton>
+    }
+    <app-boton pie-der variante="tinta" (accion)="cerrarDrawer()">Cerrar</app-boton>
+  </app-drawer>
+}
+
+@if (porCancelar()) {
+  <app-dialogo
+    [titulo]="'¿Cancelar el pedido #' + porCancelar()!.pedido.id + '?'"
+    tipo="Acción irreversible"
+    [esDestructivo]="true"
+    (cerrar)="cancelarElDialogo()">
+    <ul>
+      @for (consecuencia of consecuenciasDeCancelar(porCancelar()!); track consecuencia) {
+        <li>{{ consecuencia }}</li>
+      }
+    </ul>
+
+    @if (errorDelDialogo()) {
+      <app-aviso tono="err" glifo="!" [titulo]="errorDelDialogo()!.titulo">
+        {{ errorDelDialogo()!.texto }}
+      </app-aviso>
+    }
+
+    <app-boton pie variante="tinta" (accion)="cancelarElDialogo()">Volver</app-boton>
+    @if (!errorDelDialogo()) {
+      <app-boton pie variante="calor" [disabled]="cancelando()" (accion)="confirmarCancelar()">
+        Cancelar pedido
+      </app-boton>
+    }
+  </app-dialogo>
+}

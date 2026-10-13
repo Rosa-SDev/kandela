@@ -21,3 +21,10 @@ spring:
     console:
       enabled: true
       path: /h2-console
+
+# Direcciones de los demás servicios que este consulta.
+servicios:
+  carta:
+    url: http://localhost:8082
+  usuarios:
+    url: http://localhost:8081

@@ -40,7 +40,7 @@ public class ReservaController {
         return reservaService.buscarPorId(id);
     }
 
-    @PutMapping("/{id}/estado")
+    @PatchMapping("/{id}/estado")
     public ReservaDTO cambiarEstado(@PathVariable Long id, @Valid @RequestBody CambiarEstadoDTO dto) {
         return reservaService.cambiarEstado(id, dto.nuevoEstado());
     }

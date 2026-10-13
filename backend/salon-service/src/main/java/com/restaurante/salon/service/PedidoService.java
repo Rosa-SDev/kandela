@@ -1,5 +1,7 @@
 package com.restaurante.salon.service;
 
+import com.restaurante.salon.cliente.CartaClient;
+import com.restaurante.salon.cliente.PlatilloRemoto;
 import com.restaurante.salon.dto.AgregarPlatilloDTO;
 import com.restaurante.salon.dto.CrearPedidoDTO;
 import com.restaurante.salon.exception.ConflictoException;
@@ -14,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Reglas de negocio de los pedidos del restaurante.
@@ -21,12 +24,31 @@ import java.util.List;
 @Service
 public class PedidoService {
 
+    /**
+     * El paso siguiente de cada estado en el recorrido del pedido.
+     *
+     * Cancelar y pagar no están aquí porque no son pasos del recorrido: se
+     * puede cancelar desde cualquier estado no pagado, y a pagado solo se
+     * llega emitiendo la factura.
+     */
+    private static final Map<EstadoPedido, EstadoPedido> PASO_SIGUIENTE = Map.of(
+            EstadoPedido.ABIERTO, EstadoPedido.EN_COCINA,
+            EstadoPedido.EN_COCINA, EstadoPedido.EN_PREPARACION,
+            EstadoPedido.EN_PREPARACION, EstadoPedido.SERVIDO);
+
     private final PedidoRepository pedidoRepository;
     private final MesaService mesaService;
+    private final CartaClient cartaClient;
+    private final com.restaurante.salon.cliente.UsuariosClient usuariosClient;
 
-    public PedidoService(PedidoRepository pedidoRepository, MesaService mesaService) {
+    public PedidoService(PedidoRepository pedidoRepository,
+                         MesaService mesaService,
+                         CartaClient cartaClient,
+                         com.restaurante.salon.cliente.UsuariosClient usuariosClient) {
         this.pedidoRepository = pedidoRepository;
         this.mesaService = mesaService;
+        this.cartaClient = cartaClient;
+        this.usuariosClient = usuariosClient;
     }
 
     /**
@@ -36,6 +58,17 @@ public class PedidoService {
      */
     @Transactional
     public Pedido crear(CrearPedidoDTO dto) {
+        com.restaurante.salon.cliente.UsuarioRemoto mesero = usuariosClient.obtener(dto.meseroId());
+        if (mesero == null) {
+            throw new NoEncontradoException("El usuario " + dto.meseroId() + " no existe.");
+        }
+        if (!"MESERO".equals(mesero.rol())) {
+            throw new ConflictoException(mesero.nombre() + " no es mesero.");
+        }
+        if (!Boolean.TRUE.equals(mesero.activo())) {
+            throw new ConflictoException(mesero.nombre() + " está inactivo.");
+        }
+
         Mesa mesa = mesaService.buscarPorId(dto.mesaId());
 
         if (mesa.getEstado() == EstadoMesa.OCUPADA) {
@@ -62,7 +95,29 @@ public class PedidoService {
     }
 
     /**
-     * Agrega una línea de platillo desnormalizada al pedido.
+     * Cambia la nota del pedido.
+     *
+     * Solo se permite mientras el pedido sigue abierto: en cuanto sale hacia
+     * la cocina, lo que diga la nota ya está en manos de quien cocina.
+     */
+    @Transactional
+    public Pedido cambiarNota(Long id, String observaciones) {
+        Pedido pedido = buscarPorId(id);
+
+        if (pedido.getEstado() != EstadoPedido.ABIERTO) {
+            throw new ConflictoException("Solo se puede cambiar la nota de un pedido abierto.");
+        }
+
+        pedido.setObservaciones(observaciones);
+        return pedidoRepository.save(pedido);
+    }
+
+    /**
+     * Agrega una línea de platillo al pedido.
+     *
+     * El nombre y el precio se le piden a la carta y se guardan como una copia
+     * congelada en la línea: si mañana sube el precio de la bandeja paisa, las
+     * cuentas ya tomadas siguen diciendo lo que el cliente aceptó pagar.
      */
     @Transactional
     public Pedido agregarPlatillo(Long id, AgregarPlatilloDTO dto) {
@@ -72,8 +127,13 @@ public class PedidoService {
             throw new ConflictoException("Solo se pueden agregar platillos a un pedido abierto.");
         }
 
-        // TODO Avance 2: Consultar carta-service para obtener nombre y precio unitario
-        LineaPedido linea = new LineaPedido(dto.platilloId(), dto.nombre(), dto.precioUnitario(), pedido);
+        PlatilloRemoto platillo = cartaClient.obtener(dto.platilloId());
+        if (!platillo.disponible()) {
+            throw new ConflictoException("El platillo " + platillo.nombre() + " está agotado.");
+        }
+
+        LineaPedido linea = new LineaPedido(dto.platilloId(), platillo.nombre(),
+                                            platillo.precio(), pedido);
         pedido.agregarPlatillo(linea);
 
         return pedidoRepository.save(pedido);
@@ -99,7 +159,8 @@ public class PedidoService {
     }
 
     /**
-     * Cambia el estado del pedido (EN_PREPARACION, SERVIDO, CANCELADO).
+     * Mueve el pedido al estado siguiente de su recorrido, o lo cancela.
+     *
      * Cancelar libera la mesa.
      */
     @Transactional
@@ -113,6 +174,8 @@ public class PedidoService {
             throw new ConflictoException("No se puede modificar un pedido ya pagado.");
         }
 
+        validarElPaso(pedido.getEstado(), nuevoEstado);
+
         if (nuevoEstado == EstadoPedido.CANCELADO) {
             pedido.cancelar();
         } else {
@@ -120,6 +183,26 @@ public class PedidoService {
         }
 
         return pedidoRepository.save(pedido);
+    }
+
+    /**
+     * Comprueba que el pedido pueda pasar de un estado al otro.
+     *
+     * Sin esto una comanda podría volver atrás, saltarse la cocina o darse por
+     * cobrada sin que exista una factura, y lo que muestra cada pantalla
+     * dejaría de corresponder con lo que de verdad pasó en el salón.
+     */
+    private static void validarElPaso(EstadoPedido actual, EstadoPedido nuevo) {
+        if (nuevo == EstadoPedido.CANCELADO) {
+            return;
+        }
+        if (nuevo == EstadoPedido.PAGADO) {
+            throw new ConflictoException("Un pedido solo pasa a pagado al emitir su factura.");
+        }
+        if (PASO_SIGUIENTE.get(actual) != nuevo) {
+            throw new ConflictoException("No se puede pasar un pedido de " + actual.nombreLegible()
+                    + " a " + nuevo.nombreLegible() + ".");
+        }
     }
 
     /**

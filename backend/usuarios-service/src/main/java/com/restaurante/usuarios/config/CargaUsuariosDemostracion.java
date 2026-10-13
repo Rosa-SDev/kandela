@@ -8,12 +8,18 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 /**
- * Inserta un usuario de cada rol al arrancar, solo si la tabla está vacía.
- * Con H2 en memoria esto se cumple en cada reinicio; el chequeo importa de
- * verdad cuando en el Avance 2 la base de datos sea persistente en MySQL.
+ * Inserta los usuarios de demostración de Raíz y Sazón al arrancar, solo si la
+ * tabla está vacía. Con H2 en memoria esto se cumple en cada reinicio.
+ *
+ * El orden es importante: los id se generan en orden de inserción y los demás
+ * servicios los referencian (los meseros 2 y 3 aparecen en reservas y pedidos).
+ * Se crean con el servicio, no con el repositorio, para que la contraseña se
+ * guarde con hash.
  */
 @Component
 public class CargaUsuariosDemostracion implements CommandLineRunner {
+
+    private static final String PASSWORD_DEMOSTRACION = "kandela123";
 
     private final UsuarioRepository repositorio;
     private final UsuarioService servicio;
@@ -30,12 +36,14 @@ public class CargaUsuariosDemostracion implements CommandLineRunner {
         }
 
         servicio.crear(new CrearUsuarioDTO(
-                "Administrador Demo", "administrador@restaurante.com", Rol.ADMINISTRADOR, "admin123"));
+                "Laura Méndez", "laura.mendez@raizysazon.co", Rol.ADMINISTRADOR, PASSWORD_DEMOSTRACION));
         servicio.crear(new CrearUsuarioDTO(
-                "Mesero Demo", "mesero@restaurante.com", Rol.MESERO, "mesero123"));
+                "Carlos Rojas", "carlos.rojas@raizysazon.co", Rol.MESERO, PASSWORD_DEMOSTRACION));
         servicio.crear(new CrearUsuarioDTO(
-                "Cocinero Demo", "cocinero@restaurante.com", Rol.COCINERO, "cocinero123"));
+                "Andrea Pérez", "andrea.perez@raizysazon.co", Rol.MESERO, PASSWORD_DEMOSTRACION));
         servicio.crear(new CrearUsuarioDTO(
-                "Cajero Demo", "cajero@restaurante.com", Rol.CAJERO, "cajero123"));
+                "Jorge Castaño", "jorge.castano@raizysazon.co", Rol.COCINERO, PASSWORD_DEMOSTRACION));
+        servicio.crear(new CrearUsuarioDTO(
+                "Diana Ríos", "diana.rios@raizysazon.co", Rol.CAJERO, PASSWORD_DEMOSTRACION));
     }
 }

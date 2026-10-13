@@ -1,0 +1,19 @@
+/* You can add global styles to this file, and also import other style files */
+
+/* Capa 4: Admin y Login */
+.sh{height:100%;display:flex;flex-direction:column;background:var(--fondo);color:var(--texto);font-size:var(--txt);overflow:hidden;position:relative}
+.sh-cuerpo{flex:1;min-height:0;display:flex;flex-direction:column}
+
+/* ---- Acceso ---- */
+.login{flex:1;min-height:0;overflow:auto;display:grid;grid-template-columns:minmax(0,1fr);justify-items:center;align-items:center;padding:var(--s6) var(--s4)}
+.login__col{width:min(400px,100%);min-width:0;display:grid;gap:var(--s4)}
+.login__col .f-titulo{--titulo:40px}
+.login__nota{margin:0;font-size:14px;color:var(--texto-2)}
+
+/* ---- Administración ---- */
+.adm-cuerpo{flex:1;min-height:0;overflow:auto;padding:var(--s6) var(--s8) var(--s8);display:flex;flex-direction:column;gap:var(--s4)}
+.adm-cab{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:var(--s3) var(--s6)}
+.adm-herr{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:var(--s3) var(--s6)}
+.adm-sub{display:flex;gap:0;border-bottom:2px solid var(--tinta)}
+.adm-sub button{height:40px;padding:0 var(--s4);border:0;background:transparent;font-family:var(--f-voz);font-size:17px;letter-spacing:.03em;text-transform:uppercase;color:var(--texto-2);cursor:pointer}
+.adm-sub button[aria-pressed="true"]{background:var(--tinta);color:var(--papel)}

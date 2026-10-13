@@ -1,0 +1,385 @@
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { AbstractControl, FormBuilder, FormControl, ReactiveFormsModule, ValidationErrors } from '@angular/forms';
+import { catchError, debounceTime, distinctUntilChanged, EMPTY, forkJoin, map, of, switchMap } from 'rxjs';
+import { ClienteDTO, ReservaDTO } from '@compartido/api/tipos';
+import { ApiService } from '../../nucleo/api.service';
+import { TituloComponent } from '../../componentes/titulo.component';
+import { TablaComponent } from '../../componentes/tabla.component';
+import { AvisoComponent } from '../../componentes/aviso.component';
+import { CampoComponent } from '../../componentes/campo.component';
+import { BotonComponent } from '../../componentes/boton.component';
+import { DrawerComponent } from '../../componentes/drawer.component';
+import { DialogoComponent } from '../../componentes/dialogo.component';
+
+/** Equivale a @NotBlank del backend: el texto no puede ser vacío ni solo espacios. */
+function noVacio(control: AbstractControl): ValidationErrors | null {
+  return String(control.value ?? '').trim() ? null : { required: true };
+}
+
+@Component({
+  selector: 'app-clientes',
+  standalone: true,
+  imports: [
+    ReactiveFormsModule,
+    TituloComponent,
+    TablaComponent,
+    AvisoComponent,
+    CampoComponent,
+    BotonComponent,
+    DrawerComponent,
+    DialogoComponent
+  ],
+  template: `
+    <div class="adm-cab">
+      <app-titulo texto="Clientes" [par]="total() + (total() === 1 ? ' registrado' : ' registrados')"></app-titulo>
+      <app-boton variante="calor" (accion)="abrir()">Nuevo cliente</app-boton>
+    </div>
+
+    @if (error()) {
+      <app-aviso tono="err" glifo="!" [titulo]="error()!"></app-aviso>
+    }
+
+    <div style="max-width: 420px; margin: var(--s4) 0 var(--s2)">
+      <app-campo label="Buscar por nombre" [formControl]="busqueda"></app-campo>
+    </div>
+
+    @if (exito()) {
+      <app-aviso glifo="✓" [titulo]="exito()!"></app-aviso>
+    }
+
+    <app-tabla
+      [columnas]="['Nombre', 'Documento', 'Teléfono', 'Reservas', '']"
+      [vacia]="!cargando() && clientes().length === 0"
+      [mensajeVacia]="termino() ? 'SIN RESULTADOS' : 'SIN CLIENTES'"
+      [subMensajeVacia]="termino() ? 'ningún cliente se llama «' + termino() + '»' : null">
+      @for (c of clientes(); track c.id) {
+        <tr [class.nueva]="c.id === resaltadoId()">
+          <td><b>{{ c.nombre }}</b></td>
+          <td>{{ c.documento }}</td>
+          <td>{{ c.telefono ?? '—' }}</td>
+          <td>{{ reservasPorCliente()[c.id] ?? 0 }}</td>
+          <td class="acc">
+            <app-boton variante="texto" (accion)="editar(c)">Editar</app-boton>
+            <app-boton variante="texto-baja" (accion)="pedirEliminar(c)">Eliminar</app-boton>
+          </td>
+        </tr>
+      }
+    </app-tabla>
+
+    @if (drawerAbierto()) {
+      <app-drawer
+        [titulo]="editando() ? 'Editar cliente' : 'Nuevo cliente'"
+        [par]="editando()?.nombre ?? null"
+        (cerrar)="cerrar()">
+        @if (resumen()) {
+          <app-aviso tono="err" glifo="!" [titulo]="resumen()!.titulo">
+            {{ resumen()!.texto }}
+          </app-aviso>
+        }
+
+        <form [formGroup]="formulario" (ngSubmit)="guardar()" style="display: grid; gap: var(--s4)">
+          <app-campo
+            label="Nombre completo"
+            formControlName="nombre"
+            [req]="true"
+            [error]="errorDe('nombre')">
+          </app-campo>
+
+          <app-campo
+            label="Documento"
+            formControlName="documento"
+            [req]="true"
+            [error]="errorDe('documento')">
+          </app-campo>
+
+          <app-campo
+            label="Teléfono"
+            formControlName="telefono"
+            ayuda="Opcional.">
+          </app-campo>
+
+          <small class="f-req">* Obligatorio</small>
+        </form>
+
+        @if (editando()) {
+          <app-boton pie-izq variante="baja" (accion)="pedirEliminar(editando()!)">Eliminar</app-boton>
+        }
+        <app-boton pie-der variante="texto" (accion)="cerrar()">Cancelar</app-boton>
+        <app-boton pie-der variante="calor" [disabled]="guardando()" (accion)="guardar()">
+          {{ editando() ? 'Guardar cambios' : 'Registrar cliente' }}
+        </app-boton>
+      </app-drawer>
+    }
+
+    @if (porEliminar()) {
+      <app-dialogo
+        [titulo]="'¿Eliminar a ' + porEliminar()!.nombre + '?'"
+        tipo="Acción irreversible"
+        [esDestructivo]="true"
+        (cerrar)="cancelarEliminar()">
+        <ul>
+          <li>Se borran su nombre, documento y teléfono.</li>
+          <li>Esta acción no se puede deshacer.</li>
+        </ul>
+        @if (errorEliminar()) {
+          <app-aviso tono="err" glifo="!" [titulo]="errorEliminar()!.titulo">
+            {{ errorEliminar()!.texto }}
+          </app-aviso>
+        }
+        <app-boton pie variante="tinta" (accion)="cancelarEliminar()">Volver</app-boton>
+        @if (!errorEliminar()) {
+          <app-boton pie variante="calor" [disabled]="eliminando()" (accion)="confirmarEliminar()">
+            Eliminar cliente
+          </app-boton>
+        }
+      </app-dialogo>
+    }
+  `
+})
+export class ClientesComponent implements OnInit {
+  private api = inject(ApiService);
+  private fb = inject(FormBuilder);
+
+  /** Todos los clientes, sin filtro: dan el total del título y dicen quién tiene un documento. */
+  todos = signal<ClienteDTO[]>([]);
+  /** Los que se ven en la tabla: todos, o el resultado de la búsqueda. */
+  clientes = signal<ClienteDTO[]>([]);
+  total = computed(() => this.todos().length);
+  reservasPorCliente = signal<Record<number, number>>({});
+  termino = signal('');
+  cargando = signal(true);
+  error = signal<string | null>(null);
+  exito = signal<string | null>(null);
+  resaltadoId = signal<number | null>(null);
+
+  drawerAbierto = signal(false);
+  editando = signal<ClienteDTO | null>(null);
+  guardando = signal(false);
+  resumen = signal<{ titulo: string; texto: string } | null>(null);
+  errorDocumentoSrv = signal<string | null>(null);
+
+  porEliminar = signal<ClienteDTO | null>(null);
+  eliminando = signal(false);
+  errorEliminar = signal<{ titulo: string; texto: string } | null>(null);
+
+  busqueda = new FormControl('', { nonNullable: true });
+
+  formulario = this.fb.nonNullable.group({
+    nombre: ['', noVacio],
+    documento: ['', noVacio],
+    telefono: ['']
+  });
+
+  private readonly mensajes: Record<string, string> = {
+    nombre: 'El nombre es obligatorio.',
+    documento: 'El documento es obligatorio.'
+  };
+
+  constructor() {
+    // Busca en el servidor 300 ms después de que la persona deja de escribir.
+    this.busqueda.valueChanges
+      .pipe(
+        debounceTime(300),
+        map((texto) => texto.trim()),
+        distinctUntilChanged(),
+        switchMap((texto) =>
+          this.api.get<ClienteDTO[]>(this.urlDeBusqueda(texto)).pipe(
+            map((lista) => ({ texto, lista })),
+            catchError((err) => {
+              this.error.set(err.titulo);
+              return EMPTY;
+            })
+          )
+        ),
+        takeUntilDestroyed()
+      )
+      .subscribe(({ texto, lista }) => {
+        this.error.set(null);
+        this.termino.set(texto);
+        this.clientes.set(lista);
+      });
+
+    // Al cambiar el documento se borra el aviso de "documento repetido" que mandó el servidor.
+    this.formulario.controls.documento.valueChanges
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => this.errorDocumentoSrv.set(null));
+  }
+
+  ngOnInit() {
+    this.cargar();
+  }
+
+  abrir() {
+    this.editando.set(null);
+    this.formulario.reset({ nombre: '', documento: '', telefono: '' });
+    this.preparar();
+  }
+
+  editar(cliente: ClienteDTO) {
+    this.editando.set(cliente);
+    this.formulario.reset({
+      nombre: cliente.nombre,
+      documento: cliente.documento,
+      telefono: cliente.telefono ?? ''
+    });
+    this.preparar();
+  }
+
+  private preparar() {
+    this.resumen.set(null);
+    this.errorDocumentoSrv.set(null);
+    this.exito.set(null);
+    this.drawerAbierto.set(true);
+  }
+
+  cerrar() {
+    this.drawerAbierto.set(false);
+  }
+
+  errorDe(campo: 'nombre' | 'documento'): string | null {
+    if (campo === 'documento' && this.errorDocumentoSrv()) {
+      return this.errorDocumentoSrv();
+    }
+    const control = this.formulario.controls[campo];
+    return control.touched && control.invalid ? this.mensajes[campo] : null;
+  }
+
+  guardar() {
+    if (this.guardando()) {
+      return;
+    }
+
+    if (this.formulario.invalid) {
+      this.formulario.markAllAsTouched();
+      const n = Object.values(this.formulario.controls).filter((c) => c.invalid).length;
+      this.resumen.set({
+        titulo: `Revise ${n} campo${n === 1 ? '' : 's'}`,
+        texto: 'No se guardó nada todavía.'
+      });
+      return;
+    }
+
+    const valores = this.formulario.getRawValue();
+    const datos = {
+      nombre: valores.nombre.trim(),
+      documento: valores.documento.trim(),
+      telefono: valores.telefono.trim() || null
+    };
+    const original = this.editando();
+    this.guardando.set(true);
+    this.resumen.set(null);
+
+    const peticion = original
+      ? this.api.put<ClienteDTO>(`/api/clientes/${original.id}`, datos)
+      : this.api.post<ClienteDTO>('/api/clientes', datos);
+
+    peticion.subscribe({
+      next: (guardado) => {
+        this.guardando.set(false);
+        this.drawerAbierto.set(false);
+        this.resaltadoId.set(guardado.id);
+        if (original) {
+          this.exito.set(`Cliente ${guardado.nombre} actualizado.`);
+        } else {
+          this.exito.set(`Cliente ${guardado.nombre} registrado.`);
+          // Se limpia la búsqueda para que el cliente nuevo quede a la vista.
+          this.busqueda.setValue('', { emitEvent: false });
+          this.termino.set('');
+        }
+        this.cargar();
+      },
+      error: (err) => {
+        this.guardando.set(false);
+        if (err.status === 409) {
+          this.errorDocumentoSrv.set('Revise este campo.');
+          const dueno = this.todos().find(
+            (c) => c.documento === datos.documento && c.id !== original?.id
+          );
+          this.resumen.set({
+            titulo: err.titulo,
+            texto: dueno
+              ? `Lo tiene ${dueno.nombre}. Búsquelo en la lista en lugar de registrarlo de nuevo.`
+              : 'No se guardó nada todavía.'
+          });
+        } else {
+          this.resumen.set({ titulo: err.titulo, texto: 'No se guardó nada todavía.' });
+        }
+      }
+    });
+  }
+
+  pedirEliminar(cliente: ClienteDTO) {
+    this.exito.set(null);
+    this.errorEliminar.set(null);
+    this.porEliminar.set(cliente);
+  }
+
+  cancelarEliminar() {
+    this.porEliminar.set(null);
+    this.errorEliminar.set(null);
+  }
+
+  confirmarEliminar() {
+    const cliente = this.porEliminar();
+    if (!cliente || this.eliminando()) {
+      return;
+    }
+    this.eliminando.set(true);
+
+    this.api.delete<void>(`/api/clientes/${cliente.id}`).subscribe({
+      next: () => {
+        this.eliminando.set(false);
+        this.porEliminar.set(null);
+        this.drawerAbierto.set(false);
+        this.resaltadoId.set(null);
+        this.exito.set(`Cliente ${cliente.nombre} eliminado.`);
+        this.cargar();
+      },
+      error: (err) => {
+        this.eliminando.set(false);
+        // El diálogo se queda abierto con el motivo; solo queda «Volver».
+        this.errorEliminar.set(
+          err.status === 409
+            ? {
+                titulo: `No se puede eliminar a ${cliente.nombre}`,
+                texto: 'Tiene reservas asociadas. Elimine primero sus reservas.'
+              }
+            : { titulo: err.titulo, texto: 'No se eliminó nada.' }
+        );
+      }
+    });
+  }
+
+  private urlDeBusqueda(texto: string): string {
+    return texto ? `/api/clientes?nombre=${encodeURIComponent(texto)}` : '/api/clientes';
+  }
+
+  /** Trae todos los clientes, sus reservas y, si hay una búsqueda activa, su resultado. */
+  private cargar() {
+    this.cargando.set(true);
+    const termino = this.termino();
+
+    forkJoin({
+      todos: this.api.get<ClienteDTO[]>('/api/clientes'),
+      reservas: this.api.get<ReservaDTO[]>('/api/reservas'),
+      buscados: termino ? this.api.get<ClienteDTO[]>(this.urlDeBusqueda(termino)) : of(null)
+    }).subscribe({
+      next: ({ todos, reservas, buscados }) => {
+        const cuenta: Record<number, number> = {};
+        for (const reserva of reservas) {
+          cuenta[reserva.clienteId] = (cuenta[reserva.clienteId] ?? 0) + 1;
+        }
+        this.reservasPorCliente.set(cuenta);
+        this.todos.set(todos);
+        this.clientes.set(buscados ?? todos);
+        this.error.set(null);
+        this.cargando.set(false);
+      },
+      error: (err) => {
+        this.error.set(err.titulo);
+        this.cargando.set(false);
+      }
+    });
+  }
+}

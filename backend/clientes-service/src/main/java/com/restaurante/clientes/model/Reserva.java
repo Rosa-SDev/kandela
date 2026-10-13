@@ -21,8 +21,8 @@ import jakarta.persistence.Table;
  *
  * Por lo mismo, confirmar()/cancelar() aquí solo cambian el estado propio de
  * la reserva — el original también tocaba el estado de la Mesa, pero eso ya
- * no es posible sin el objeto real. Validar mesa/capacidad queda fuera del
- * Avance 1 (decisión D8 del contrato).
+ * no es posible sin el objeto real. La mesa y su capacidad se validan al
+ * crear la reserva, consultando al salón (ver ReservaService).
  */
 @Entity
 @Table(name = "reservas")
@@ -116,8 +116,6 @@ public class Reserva {
         this.meseroId = meseroId;
     }
 
-    // TODO Avance 2: validar que numPersonas no supere la capacidad de la mesa
-    // (requiere consultar salon-service; fuera de alcance del Avance 1)
     public void confirmar() {
         this.estado = EstadoReserva.CONFIRMADA;
     }

@@ -1,6 +1,6 @@
 package com.restaurante.clientes.exception;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.springframework.http.HttpStatus;
@@ -15,33 +15,53 @@ public class ManejadorDeErrores {
 
     @ExceptionHandler(NoEncontradoException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    public Map<String, String> noEncontrado(NoEncontradoException e) {
+    public Map<String, Object> noEncontrado(NoEncontradoException e) {
         return Map.of("error", e.getMessage());
     }
 
     @ExceptionHandler(ConflictoException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
-    public Map<String, String> conflicto(ConflictoException e) {
+    public Map<String, Object> conflicto(ConflictoException e) {
+        return Map.of("error", e.getMessage());
+    }
+
+    /**
+     * Otro servicio (el salón) no respondió. Se distingue del 404 y del 409
+     * para que la interfaz pueda decir que el problema no está en los datos.
+     */
+    @ExceptionHandler(ServicioNoDisponibleException.class)
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    public Map<String, Object> servicioNoDisponible(ServicioNoDisponibleException e) {
         return Map.of("error", e.getMessage());
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public Map<String, String> jsonInvalido(HttpMessageNotReadableException e) {
+    public Map<String, Object> jsonInvalido(HttpMessageNotReadableException e) {
         return Map.of("error", "El cuerpo de la petición no es un JSON válido.");
     }
 
+    /**
+     * La lanza @Valid cuando el cuerpo de la petición no cumple las
+     * validaciones del DTO. Se devuelven todos los campos que fallaron,
+     * dentro del mismo sobre que el resto de los errores: la interfaz lee
+     * siempre «error» y, cuando viene, «campos» para marcar cada uno.
+     *
+     * El orden de los campos se conserva para que dos peticiones iguales
+     * devuelvan la misma respuesta.
+     */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public Map<String, String> validacionFallida(MethodArgumentNotValidException e) {
-        Map<String, String> errores = new HashMap<>();
-        e.getBindingResult().getFieldErrors().forEach(err -> errores.put(err.getField(), err.getDefaultMessage()));
-        return errores;
+    public Map<String, Object> validacionFallida(MethodArgumentNotValidException e) {
+        Map<String, String> campos = new LinkedHashMap<>();
+        e.getBindingResult().getFieldErrors().forEach(err -> campos.put(err.getField(), err.getDefaultMessage()));
+        return Map.of("error", "La petición tiene campos inválidos",
+                      "campos", campos);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public Map<String, String> solicitudInvalida(IllegalArgumentException e) {
+    public Map<String, Object> solicitudInvalida(IllegalArgumentException e) {
         return Map.of("error", e.getMessage());
     }
 }

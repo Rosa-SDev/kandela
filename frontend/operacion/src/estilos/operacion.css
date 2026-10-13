@@ -1,0 +1,403 @@
+/* =====================================================================
+   CAPA 4 · Interfaces por rol de Kandela POS y KDS
+   =====================================================================
+   Las capas 1 a 3 (fundamentos, componentes y objetos) viven en
+   frontend/compartido/estilos y las comparten las dos aplicaciones. Esta
+   hoja es solo de esta aplicación: coloca las piezas en la pantalla y no
+   define ningún color, tipografía ni tamaño propio, solo variables que ya
+   existen.
+
+   El prototipo escribe estas reglas dentro de consultas de contenedor
+   porque simula el dispositivo en un marco. Aquí el contenedor es la
+   ventana, así que las mismas reglas van en consultas de medios.
+   ===================================================================== */
+
+/* El shell mide la ventana completa, así que su contenedor también. */
+#root {
+   height: 100%
+}
+
+.sh {
+   height: 100%;
+   display: flex;
+   flex-direction: column;
+   background: var(--fondo);
+   color: var(--texto);
+   font-size: var(--txt);
+   overflow: hidden;
+   position: relative
+}
+
+.sh-cuerpo {
+   flex: 1;
+   min-height: 0;
+   display: flex;
+   flex-direction: column
+}
+
+/* ---- Acceso ---- */
+.login {
+   flex: 1;
+   min-height: 0;
+   overflow: auto;
+   display: grid;
+   grid-template-columns: minmax(0, 1fr);
+   justify-items: center;
+   align-items: center;
+   padding: var(--s6) var(--s4)
+}
+
+.login__col {
+   width: min(400px, 100%);
+   min-width: 0;
+   display: grid;
+   gap: var(--s4)
+}
+
+.login__col .f-titulo {
+   --titulo: 40px
+}
+
+.login__nota {
+   margin: 0;
+   font-size: 14px;
+   color: var(--texto-2)
+}
+
+/* ---- Salón · Mesero ---- */
+/* Mínimo de texto del salón: 14 px, aunque la pieza sea de otra capa. */
+.sh-salon .f-estado,
+.sh-salon .f-plato__d,
+.sh-salon .f-comanda__nota label,
+.sh-salon .f-linea__n small {
+   font-size: 14px
+}
+
+/* El drawer del salón es más ancho que el de administración: se usa con el
+   dedo, y los campos van en parejas. */
+.sh-salon .f-drawer {
+   width: 60%
+}
+
+.sh-salon .f-campo > label,
+.sh-salon .f-campo__ayuda,
+.sh-salon .f-campo__error {
+   font-size: 14px
+}
+
+.sh-cab {
+   display: flex;
+   flex-wrap: wrap;
+   align-items: flex-end;
+   justify-content: space-between;
+   gap: var(--s3) var(--s6)
+}
+
+/* Mis pedidos, Reservas y Carta: una columna que ocupa el cuerpo y rueda. */
+.salon-sec {
+   flex: 1;
+   min-height: 0;
+   overflow: auto;
+   padding: var(--s6);
+   display: flex;
+   flex-direction: column;
+   gap: var(--s4)
+}
+
+.salon-comandas {
+   display: grid;
+   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+   gap: var(--s5);
+   align-items: start
+}
+
+.salon-sec .f-carta {
+   max-width: 760px
+}
+
+/* Sección sin nada que mostrar: una sola línea, en voz baja. */
+.salon-vacio {
+   margin: 0;
+   font-family: var(--f-voz);
+   font-size: var(--titulo);
+   text-transform: uppercase;
+   letter-spacing: .015em;
+   color: var(--texto-3)
+}
+
+.salon-vacio span {
+   font-family: var(--f-ui);
+   font-size: 15px;
+   text-transform: none;
+   letter-spacing: 0
+}
+
+.salon-plano {
+   flex: 1;
+   min-height: 0;
+   display: grid;
+   grid-template-columns: minmax(0, 1fr) 380px
+}
+
+.salon-mapa {
+   padding: var(--s6);
+   display: flex;
+   flex-direction: column;
+   gap: var(--s6);
+   min-height: 0;
+   overflow: auto
+}
+
+.salon-mapa__grid {
+   display: flex;
+   flex-wrap: wrap;
+   align-items: flex-end;
+   gap: calc(var(--u)*2.2) calc(var(--u)*2.6);
+   padding: calc(var(--u)*1.2)
+}
+
+.salon-detalle {
+   border-left: 1px solid var(--linea);
+   display: flex;
+   flex-direction: column;
+   min-height: 0;
+   padding: var(--s6) var(--s5);
+   gap: var(--s4);
+   overflow: auto
+}
+
+.salon-detalle__cerrar {
+   display: none
+}
+
+.salon-detalle__estado {
+   display: flex;
+   flex-wrap: wrap;
+   gap: var(--s2) var(--s4)
+}
+
+.salon-detalle p {
+   margin: 0;
+   color: var(--texto-2)
+}
+
+.salon-detalle .f-comanda {
+   flex: none
+}
+
+/* ---- Toma de pedido ---- */
+.salon-toma {
+   flex: 1;
+   min-height: 0;
+   display: flex;
+   flex-direction: column
+}
+
+.toma-cab {
+   flex: none;
+   display: flex;
+   align-items: center;
+   gap: var(--s4);
+   padding: var(--s4) var(--s6) 0
+}
+
+.toma-cuerpo {
+   flex: 1;
+   min-height: 0;
+   display: grid;
+   grid-template-columns: minmax(0, 1fr) 420px;
+   gap: var(--s6);
+   padding: var(--s4) var(--s6) var(--s6)
+}
+
+.toma-carta {
+   overflow: auto;
+   min-height: 0;
+   display: grid;
+   gap: var(--s4);
+   align-content: start
+}
+
+.toma-comanda {
+   display: flex;
+   flex-direction: column;
+   min-height: 0
+}
+
+.toma-comanda .f-comanda {
+   flex: 1
+}
+
+/* ---- Móvil ---- */
+@media (max-width: 600px) {
+   .login__col .f-titulo {
+      --titulo: 32px
+   }
+
+   /* Las pestañas bajan a la barra inferior, al alcance del pulgar. */
+   .f-nav__tabs {
+      display: none
+   }
+
+   .f-tabbar {
+      display: grid
+   }
+
+   .salon-sec {
+      padding: var(--s3) var(--s4)
+   }
+
+   .salon-comandas {
+      grid-template-columns: 1fr
+   }
+
+   .sh-salon .f-drawer {
+      width: 100%
+   }
+
+   /* La fila de reserva apila título, datos y acciones, en ese orden. */
+   .f-fila {
+      grid-template-columns: 1fr
+   }
+
+   .f-fila__s {
+      order: 2
+   }
+
+   .f-fila__acc {
+      grid-column: 1;
+      grid-row: auto;
+      justify-content: flex-start;
+      order: 3
+   }
+
+   .f-dos {
+      grid-template-columns: 1fr
+   }
+}
+
+/* ---- Cocina · KDS ---- */
+.kds-cab {
+   flex: none;
+   display: flex;
+   justify-content: space-between;
+   align-items: center;
+   padding: 14px var(--s6) 10px;
+}
+
+.kds-reloj {
+   font-family: var(--f-doc);
+   font-size: 28px;
+   font-weight: 700;
+}
+
+.kds-tablero {
+   flex: 1;
+   min-height: 0;
+   display: grid;
+   grid-template-columns: 2fr 1fr;
+   gap: var(--s5);
+   padding: 0 var(--s6) var(--s5);
+}
+
+.kds-col {
+   display: flex;
+   flex-direction: column;
+   gap: 12px;
+   min-height: 0;
+}
+
+.kds-colh {
+   margin: 0;
+   flex: none;
+   display: flex;
+   justify-content: space-between;
+   align-items: baseline;
+   font-family: var(--f-voz);
+   font-weight: 400;
+   font-size: 22px;
+   text-transform: uppercase;
+   letter-spacing: .04em;
+   color: var(--texto-2);
+   border-bottom: 2px solid var(--filete);
+   padding-bottom: 6px;
+}
+
+.kds-colh span {
+   font-family: var(--f-doc);
+   font-size: 18px;
+}
+
+.kds-grid {
+   flex: 1;
+   min-height: 0;
+   overflow: auto;
+   display: grid;
+   grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--ticket, 340px)), 1fr));
+   align-content: start;
+   gap: 14px;
+}
+
+.kds-vacio {
+   font-family: var(--f-voz);
+   font-size: 24px;
+   text-transform: uppercase;
+   color: var(--texto-3);
+}
+
+.kds-vacio span {
+   font-family: var(--f-ui);
+   font-size: 16px;
+   text-transform: none;
+}
+
+.kds-sec {
+   flex: 1;
+   min-height: 0;
+   overflow: auto;
+   padding: 0 var(--s6) var(--s6);
+   display: flex;
+   flex-direction: column;
+   gap: var(--s4);
+}
+
+.kds-disp {
+   display: grid;
+   grid-template-columns: repeat(auto-fill, minmax(560px, 1fr));
+   gap: 14px;
+}
+
+.kds-plato {
+   display: grid;
+   grid-template-columns: minmax(0, 1fr) auto;
+   gap: var(--s4);
+   align-items: center;
+   padding: 14px 18px;
+}
+
+.kds-plato b {
+   display: block;
+   font-size: 22px;
+}
+
+.kds-plato span {
+   font-size: 16px;
+   color: var(--tinta-3);
+}
+
+.kds-plato--agotado b {
+   text-decoration: line-through;
+   color: var(--tinta-3);
+}
+
+.kds-plato__acc {
+   display: flex;
+   align-items: center;
+   justify-content: flex-end;
+   gap: var(--s4);
+}
+
+.kds-plato__acc .f-estado {
+   font-size: 16px;
+}
+
