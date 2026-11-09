@@ -12,6 +12,8 @@ spring:
 
   data:
     mongodb:
+      # Crea al arrancar los indices declarados con @Indexed (el nombre unico del platillo).
+      auto-index-creation: true
       # Los BigDecimal se guardan como NumberDecimal (Decimal128), no como texto:
       # MongoDB los compara y ordena como numeros sin perder decimales.
       representation:

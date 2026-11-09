@@ -1,6 +1,7 @@
 package com.restaurante.carta.model;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.math.BigDecimal;
@@ -28,6 +29,15 @@ public class Platillo implements IDescontable {
     @Id
     private Long id;
 
+    /**
+     * Indice unico: MongoDB rechaza un segundo platillo con el mismo nombre,
+     * aunque dos peticiones lleguen a la vez.
+     *
+     * La collation con strength 2 compara sin distinguir mayusculas pero
+     * respetando tildes, igual que equalsIgnoreCase: "Bandeja paisa" y
+     * "BANDEJA PAISA" chocan; "Ajiaco" y "Ajiacó" no.
+     */
+    @Indexed(unique = true, collation = "{ 'locale': 'es', 'strength': 2 }")
     private String nombre;
 
     private String descripcion;
