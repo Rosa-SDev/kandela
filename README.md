@@ -39,15 +39,16 @@ reinician en cada arranque con los datos de demostración.
 | JDK | 21 |
 | Node.js | 22 LTS |
 | Angular CLI | la actual (`npm install -g @angular/cli`) |
+| Docker Desktop | el actual, abierto antes de arrancar el backend |
 
 ## Cómo arrancar
 
 ```powershell
-# 1. Backend: compilar una vez y levantar los 5 procesos
+# 1. Backend: compilar una vez y levantar MongoDB y los 5 procesos
 cd backend
 .\mvnw.cmd clean install
 cd ..
-.\scripts\arrancar-backend.ps1        # abre una ventana por servicio
+.\scripts\arrancar-backend.ps1        # levanta MongoDB y abre una ventana por servicio
 
 # 2. Kandela Admin (Angular) → http://localhost:4200
 cd frontend\admin
@@ -71,6 +72,41 @@ Usuarios de prueba (contraseña de todos: `kandela123`):
 
 Hasta que se termine la tarea de datos de demostración, los usuarios disponibles son los
 que traía el backend de Web APIs (`administrador@restaurante.com` / `admin123`, etc.).
+
+## MongoDB
+
+El backend usa una sola instancia de MongoDB 8 en Docker, definida en
+`docker-compose.yml`, con una base por servicio: `usuariosdb`, `cartadb`, `clientesdb`
+y `salondb`.
+
+- Corre como **replica set de un nodo** (`rs0`), porque las transacciones de varios
+  documentos lo exigen.
+- Escucha en el **puerto 27018**, no en el 27017, para no confundirse con un MongoDB
+  instalado en el equipo.
+
+`scripts\arrancar-backend.ps1` lo levanta solo y espera a que el replica set esté listo
+antes de arrancar los servicios. Para manejarlo a mano, desde la raíz del repositorio:
+
+```powershell
+docker compose up -d --wait   # lo levanta y espera a que el replica set esté listo
+docker compose ps             # debe mostrar kandela-mongodb como (healthy)
+docker compose down           # lo detiene; los datos se conservan en el volumen
+docker compose down -v        # lo detiene y borra todos los datos
+```
+
+Los servicios arrancan con el perfil `demo`: cada uno vacía sus colecciones y recarga
+los datos de demostración. Sin ese perfil, los datos se conservan entre arranques.
+
+### Conectarse con MongoDB Compass
+
+Con el contenedor en marcha, crea una conexión nueva con esta cadena:
+
+```
+mongodb://localhost:27018/?replicaSet=rs0
+```
+
+Se ven las bases de los servicios y, dentro de cada una, sus colecciones, incluida
+`contadores`, que guarda el último id numérico entregado por colección.
 
 ## Origen del backend
 
