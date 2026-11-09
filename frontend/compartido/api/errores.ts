@@ -18,13 +18,16 @@ function esCuerpoKandela(cuerpo: unknown): cuerpo is CuerpoKandela {
   return typeof objeto.error === 'string' && !('timestamp' in objeto) && !('path' in objeto);
 }
 
+// Un 401 puede ser credenciales incorrectas o un token vencido o ausente; un 403, un rol
+// sin permiso. Se muestra el mensaje del servidor y, si no llega, uno de estos.
+const TITULOS_SIN_CUERPO: Record<number, string> = {
+  401: 'Su sesión terminó. Inicie sesión de nuevo.',
+  403: 'No tiene permisos para realizar esta operación.',
+};
+
 export function traducirError(status: number | null, cuerpo: unknown): ErrorKandela {
   if (status === null) {
     return { status, titulo: 'No hay conexión con el servidor.', texto: '', campos: {} };
-  }
-
-  if (status === 401) {
-    return { status, titulo: 'Correo o contraseña incorrectos.', texto: '', campos: {} };
   }
 
   if (esCuerpoKandela(cuerpo)) {
@@ -38,6 +41,11 @@ export function traducirError(status: number | null, cuerpo: unknown): ErrorKand
       };
     }
     return { status, titulo: cuerpo.error, texto: '', campos: {} };
+  }
+
+  const tituloPorDefecto = TITULOS_SIN_CUERPO[status];
+  if (tituloPorDefecto) {
+    return { status, titulo: tituloPorDefecto, texto: '', campos: {} };
   }
 
   if (status >= 500) {

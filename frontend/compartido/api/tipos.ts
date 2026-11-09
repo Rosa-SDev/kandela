@@ -97,6 +97,13 @@ export interface Login {
   password: string;
 }
 
+export interface RespuestaLogin {
+  token: string;
+  tipo: 'Bearer';
+  expiraEn: number; // segundos de vigencia del token
+  usuario: UsuarioDTO;
+}
+
 export interface CrearUsuario {
   nombre: string;
   correo: string;
