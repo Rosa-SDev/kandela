@@ -2,6 +2,7 @@ package com.restaurante.carta;
 
 import com.restaurante.carta.model.Platillo;
 import com.restaurante.carta.repository.PlatilloRepository;
+import com.restaurante.carta.service.PlatilloService;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,10 +18,10 @@ import java.util.List;
  * CommandLineRunner es una interfaz de un solo metodo que Spring ejecuta una
  * vez, justo despues de terminar de arrancar el contexto.
  *
- * La base de datos esta en memoria, asi que sin esto cada arranque empezaria
- * con la carta vacia y habria que crear los platillos a mano antes de probar.
+ * Los platillos se crean con PlatilloService.crear, el mismo camino que usa la
+ * API: asi reciben su id del contador igual que cualquier otro platillo.
  *
- * El orden importa: los id se generan en orden de insercion y salon-service
+ * El orden importa: los id se reparten en orden de creacion y salon-service
  * los referencia en los pedidos de demostracion (Arepa = 1 ... Limonada = 6).
  *
  * Los precios se construyen con new BigDecimal("38000.00"), desde texto: un
@@ -31,17 +32,17 @@ public class DatosDeDemostracion implements CommandLineRunner {
 
     private static final Logger LOG = LoggerFactory.getLogger(DatosDeDemostracion.class);
 
+    private final PlatilloService servicio;
     private final PlatilloRepository repositorio;
 
-    public DatosDeDemostracion(PlatilloRepository repositorio) {
+    public DatosDeDemostracion(PlatilloService servicio, PlatilloRepository repositorio) {
+        this.servicio = servicio;
         this.repositorio = repositorio;
     }
 
     /**
-     * Solo carga si la tabla esta vacia.
-     *
-     * Hoy lo esta siempre, porque H2 vive en memoria. La guarda es para el
-     * Avance 2: con MySQL, sin ella cada reinicio duplicaria los seis.
+     * Solo carga si la coleccion esta vacia: MongoDB conserva los datos entre
+     * arranques y, sin esta guarda, cada reinicio intentaria crear los seis otra vez.
      */
     @Override
     public void run(String... args) {
@@ -49,7 +50,11 @@ public class DatosDeDemostracion implements CommandLineRunner {
             return;
         }
 
-        repositorio.saveAll(List.of(
+        cargarCarta();
+    }
+
+    private void cargarCarta() {
+        List.of(
                 new Platillo("Arepa de choclo",
                              "Maíz tierno asado con queso campesino",
                              "Entradas", new BigDecimal("9000.00"), true),
@@ -67,7 +72,8 @@ public class DatosDeDemostracion implements CommandLineRunner {
                              "Postres", new BigDecimal("12000.00"), true),
                 new Platillo("Limonada de coco",
                              "Limón, crema de coco y hielo",
-                             "Bebidas", new BigDecimal("11000.00"), false)));
+                             "Bebidas", new BigDecimal("11000.00"), false))
+            .forEach(servicio::crear);
 
         LOG.info("Cargados {} platillos de demostración.", repositorio.count());
     }
