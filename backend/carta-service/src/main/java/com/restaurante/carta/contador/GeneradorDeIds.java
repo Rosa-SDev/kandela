@@ -36,4 +36,12 @@ public class GeneradorDeIds {
                 Contador.class);
         return contador.getValor();
     }
+
+    /**
+     * Vacia la coleccion "contadores": el siguiente id de cada coleccion vuelve
+     * a ser 1. Solo lo usan los datos de demostracion, al recargar desde cero.
+     */
+    public void reiniciar() {
+        mongo.remove(new Query(), Contador.class);
+    }
 }
