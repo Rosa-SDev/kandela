@@ -5,19 +5,16 @@ spring:
   application:
     name: carta-service
 
-  datasource:
-    url: jdbc:h2:mem:cartadb;DB_CLOSE_DELAY=-1
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+  # MongoDB corre en Docker (docker-compose.yml en la raiz del repositorio).
+  # replicaSet=rs0 hace que el driver hable con el replica set y no con un nodo suelto.
+  mongodb:
+    uri: mongodb://localhost:27018/cartadb?replicaSet=rs0
 
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
-    open-in-view: false
-
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
+  data:
+    mongodb:
+      # Crea al arrancar los indices declarados con @Indexed (el nombre unico del platillo).
+      auto-index-creation: true
+      # Los BigDecimal se guardan como NumberDecimal (Decimal128), no como texto:
+      # MongoDB los compara y ordena como numeros sin perder decimales.
+      representation:
+        big-decimal: decimal128

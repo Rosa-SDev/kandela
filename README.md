@@ -26,11 +26,11 @@ El restaurante de ejemplo que usa el sistema se llama **Raíz y Sazón**.
         ┌────────────┬──────────┴───┬──────────────┐
   usuarios-service carta-service clientes-service salon-service
        :8081          :8082          :8083          :8084
-     usuariosdb      cartadb       clientesdb      salondb      (H2 en memoria, una por servicio)
+     usuariosdb      cartadb       clientesdb      salondb      (MongoDB, una base por servicio)
 ```
 
-La GUI solo habla con el gateway, por `/api/**`. Las bases son H2 en memoria: se
-reinician en cada arranque con los datos de demostración.
+La GUI solo habla con el gateway, por `/api/**`. Cada servicio guarda sus datos en su
+propia base de MongoDB (ver [MongoDB](#mongodb)).
 
 ## Requisitos
 
@@ -39,7 +39,10 @@ reinician en cada arranque con los datos de demostración.
 | JDK | 21 |
 | Node.js | 22 LTS |
 | Angular CLI | la actual (`npm install -g @angular/cli`) |
-| Docker Desktop | el actual, abierto antes de arrancar el backend |
+| Docker Desktop | el actual, abierto antes de compilar y de arrancar el backend |
+
+`mvnw clean install` también necesita Docker: las pruebas de integración levantan su
+propio MongoDB en un contenedor con Testcontainers.
 
 ## Cómo arrancar
 
@@ -70,9 +73,6 @@ Usuarios de prueba (contraseña de todos: `kandela123`):
 | Cajera | `diana.rios@raizysazon.co` | Kandela POS · Caja |
 | Cocinero | `jorge.castano@raizysazon.co` | Kandela KDS |
 
-Hasta que se termine la tarea de datos de demostración, los usuarios disponibles son los
-que traía el backend de Web APIs (`administrador@restaurante.com` / `admin123`, etc.).
-
 ## MongoDB
 
 El backend usa una sola instancia de MongoDB 8 en Docker, definida en
@@ -94,8 +94,10 @@ docker compose down           # lo detiene; los datos se conservan en el volumen
 docker compose down -v        # lo detiene y borra todos los datos
 ```
 
-Los servicios arrancan con el perfil `demo`: cada uno vacía sus colecciones y recarga
-los datos de demostración. Sin ese perfil, los datos se conservan entre arranques.
+Los servicios arrancan con el perfil `demo`: cada uno vacía sus colecciones, incluida
+`contadores`, y recarga los datos de demostración, así que los ids vuelven a empezar
+en 1. Sin ese perfil, los datos de demostración se cargan solo si la colección está
+vacía, y después se conservan entre arranques.
 
 ### Conectarse con MongoDB Compass
 
@@ -123,5 +125,4 @@ Soluciones.
 ## Limitaciones conocidas
 
 - El inicio de sesión no usa token; los endpoints del backend quedan abiertos.
-- Las bases son H2 en memoria: se reinician al arrancar con los datos de demostración.
 - No hay actualización en tiempo real por WebSocket; Cocina y Caja consultan cada 5 s.
