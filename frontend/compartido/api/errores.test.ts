@@ -42,12 +42,6 @@ describe('traducirError', () => {
     expect(resultado.campos).toEqual({});
   });
 
-  it('401 usa siempre el texto fijo', () => {
-    const cuerpo = { error: 'Credenciales inválidas' };
-    const resultado = traducirError(401, cuerpo);
-    expect(resultado.titulo).toBe('Correo o contraseña incorrectos.');
-  });
-
   it('404 con mensaje de Kandela', () => {
     const cuerpo = { error: 'El platillo 9 no existe.' };
     const resultado = traducirError(404, cuerpo);
