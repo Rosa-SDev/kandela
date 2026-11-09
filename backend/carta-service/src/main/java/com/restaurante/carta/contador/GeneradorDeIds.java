@@ -18,6 +18,10 @@ import static org.springframework.data.mongodb.core.query.Criteria.where;
  * busca el contador, le suma 1 y devuelve el valor nuevo, todo de una vez. Dos
  * peticiones simultaneas nunca reciben el mismo numero. Con upsert, la primera
  * vez crea el contador, de modo que el primer id es 1.
+ *
+ * Se suma 1L y no 1: el tipo del incremento decide el tipo que guarda MongoDB.
+ * Con 1L el contador queda como entero de 64 bits (NumberLong), igual que los
+ * ids Long que reparte.
  */
 @Component
 public class GeneradorDeIds {
@@ -31,7 +35,7 @@ public class GeneradorDeIds {
     public long siguiente(String coleccion) {
         Contador contador = mongo.findAndModify(
                 Query.query(where("_id").is(coleccion)),
-                new Update().inc("valor", 1),
+                new Update().inc("valor", 1L),
                 FindAndModifyOptions.options().returnNew(true).upsert(true),
                 Contador.class);
         return contador.getValor();

@@ -50,7 +50,7 @@ class DatosDeDemostracionDemoTest {
                 .extracting(Platillo::getNombre).isEqualTo("Limonada de coco");
 
         Document contador = mongo.getCollection("contadores").find(new Document("_id", "platillos")).first();
-        assertThat(contador.get("valor", Number.class).longValue()).isEqualTo(6L);
+        assertThat(contador.get("valor")).isEqualTo(6L);
     }
 
     @Test

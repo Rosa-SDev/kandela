@@ -158,7 +158,7 @@ class PlatilloIntegracionTest {
         assertThat(crear("Ajiaco santafereño", "Sopas", "28000", true)).isEqualTo(2L);
 
         Document contador = mongo.getCollection("contadores").find(new Document("_id", "platillos")).first();
-        assertThat(contador.get("valor", Number.class).longValue()).isEqualTo(2L);
+        assertThat(contador.get("valor")).isEqualTo(2L);
     }
 
     // ---------- Unicidad del nombre ----------
