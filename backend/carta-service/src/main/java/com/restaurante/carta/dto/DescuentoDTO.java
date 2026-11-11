@@ -7,7 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 
 /**
- * El cuerpo de PUT /api/platillos/{id}/descuento.
+ * El cuerpo de PATCH /api/platillos/{id}/descuento.
  *
  * Que el porcentaje este entre 0 y 100 se valida aqui, no en el servicio: es la
  * forma de la peticion, y asi el error sale como 400 por el mismo camino que
