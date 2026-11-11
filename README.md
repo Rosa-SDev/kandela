@@ -52,6 +52,7 @@ cd backend
 .\mvnw.cmd clean install
 cd ..
 .\scripts\arrancar-backend.ps1        # levanta MongoDB y abre una ventana por servicio
+                                      # conserva los datos; con -Demo vuelve a los de ejemplo
 
 # 2. Kandela Admin (Angular) → http://localhost:4200
 cd frontend\admin
@@ -94,10 +95,24 @@ docker compose down           # lo detiene; los datos se conservan en el volumen
 docker compose down -v        # lo detiene y borra todos los datos
 ```
 
-Los servicios arrancan con el perfil `demo`: cada uno vacía sus colecciones, incluida
-`contadores`, y recarga los datos de demostración, así que los ids vuelven a empezar
-en 1. Sin ese perfil, los datos de demostración se cargan solo si la colección está
-vacía, y después se conservan entre arranques.
+### Datos guardados y datos de demostración
+
+El script tiene dos modos y lo dice al empezar:
+
+| Comando | Qué pasa con los datos |
+|---|---|
+| `.\scripts\arrancar-backend.ps1` | **Se conservan.** Los servicios arrancan sin perfil: los datos de demostración se cargan solo si la colección está vacía (la primera vez) y lo que se cree después sigue ahí al reiniciar. |
+| `.\scripts\arrancar-backend.ps1 -Demo` | **Vuelven al estado inicial.** Los servicios arrancan con el perfil `demo`: cada uno vacía sus colecciones, incluida `contadores`, y recarga los datos de demostración, así que los ids vuelven a empezar en 1. Lo creado antes se pierde. |
+
+Sin el script, cada servicio se arranca desde `backend/`:
+
+```powershell
+.\mvnw.cmd spring-boot:run -pl carta-service                                     # conserva los datos
+.\mvnw.cmd spring-boot:run -pl carta-service '-Dspring-boot.run.profiles=demo'   # vuelve a los de ejemplo
+```
+
+`docker compose down -v` también deja todo como la primera vez, pero borra el volumen
+completo de MongoDB, con las bases de todos los servicios.
 
 ### Conectarse con MongoDB Compass
 
