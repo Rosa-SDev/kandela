@@ -18,3 +18,10 @@ spring:
       # MongoDB los compara y ordena como numeros sin perder decimales.
       representation:
         big-decimal: decimal128
+
+# Swagger UI: http://localhost:8082/swagger-ui.html
+springdoc:
+  # Sin esto, springdoc pegaria a cada endpoint todas las respuestas del
+  # manejador de errores (400, 404 y 409), aunque ese endpoint no pueda
+  # devolverlas. Asi cada endpoint muestra solo las que declara su @ApiResponse.
+  override-with-generic-response: false

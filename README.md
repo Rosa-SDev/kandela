@@ -110,6 +110,25 @@ mongodb://localhost:27018/?replicaSet=rs0
 Se ven las bases de los servicios y, dentro de cada una, sus colecciones, incluida
 `contadores`, que guarda el último id numérico entregado por colección.
 
+## Swagger
+
+Cada servicio publica su propia documentación de la API con Swagger UI
+(`springdoc-openapi`, versión fijada en `backend/pom.xml`). Con el servicio en marcha,
+se abre en el navegador:
+
+| Servicio | Swagger UI | Descripción OpenAPI (JSON) |
+|---|---|---|
+| usuarios-service | http://localhost:8081/swagger-ui.html | http://localhost:8081/v3/api-docs |
+| carta-service | http://localhost:8082/swagger-ui.html | http://localhost:8082/v3/api-docs |
+| clientes-service | http://localhost:8083/swagger-ui.html | http://localhost:8083/v3/api-docs |
+| salon-service | http://localhost:8084/swagger-ui.html | http://localhost:8084/v3/api-docs |
+
+Se entra por el puerto de cada servicio, no por el gateway (8080). Cada endpoint
+muestra su ruta, su método, sus parámetros, el cuerpo que recibe y los códigos que
+puede devolver (por ejemplo 400, 404 o 409) con un ejemplo del error. Con **Try it
+out** se envía la petición de verdad: lo que se cree o se borre ahí queda guardado en
+MongoDB.
+
 ## Origen del backend
 
 `backend/` viene del proyecto de la materia **Web APIs y Microservicios**
