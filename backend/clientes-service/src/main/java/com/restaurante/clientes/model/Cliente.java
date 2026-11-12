@@ -1,6 +1,7 @@
 package com.restaurante.clientes.model;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 
@@ -19,6 +20,12 @@ public class Cliente {
 
     private String nombre;
 
+    /**
+     * Índice único: MongoDB rechaza un segundo cliente con el mismo documento,
+     * aunque dos peticiones lleguen a la vez. El documento de identidad son
+     * solo números, así que no hace falta collation.
+     */
+    @Indexed(unique = true)
     private String documento;
 
     private String telefono;
