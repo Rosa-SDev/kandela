@@ -3,6 +3,7 @@ package com.restaurante.clientes.exception;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -23,6 +24,20 @@ public class ManejadorDeErrores {
     @ResponseStatus(HttpStatus.CONFLICT)
     public Map<String, Object> conflicto(ConflictoException e) {
         return Map.of("error", e.getMessage());
+    }
+
+    /**
+     * MongoDB rechazó la escritura por el índice único del documento.
+     *
+     * El servicio ya comprueba el documento antes de guardar, así que esto solo
+     * ocurre si dos peticiones con el mismo documento llegan a la vez: las dos
+     * pasan la comprobación y el índice detiene a la segunda. Se responde igual
+     * que el conflicto normal, no con un 500.
+     */
+    @ExceptionHandler(DuplicateKeyException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public Map<String, Object> claveDuplicada(DuplicateKeyException e) {
+        return Map.of("error", "Ya existe un cliente con ese documento.");
     }
 
     /**

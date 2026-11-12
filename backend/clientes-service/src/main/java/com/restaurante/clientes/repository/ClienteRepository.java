@@ -3,11 +3,18 @@ package com.restaurante.clientes.repository;
 import java.util.List;
 import java.util.Optional;
 
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.mongodb.repository.MongoRepository;
 
 import com.restaurante.clientes.model.Cliente;
 
-public interface ClienteRepository extends JpaRepository<Cliente, Long> {
+/**
+ * Acceso a la colección "clientes".
+ *
+ * De MongoRepository se heredan insert, save, findById, findAllById, findAll y
+ * delete. De NumeracionDeClientes, siguienteId. Los demás métodos se traducen
+ * a consultas de MongoDB a partir de su propio nombre.
+ */
+public interface ClienteRepository extends MongoRepository<Cliente, Long>, NumeracionDeClientes {
 
     Optional<Cliente> findByDocumento(String documento);
 
