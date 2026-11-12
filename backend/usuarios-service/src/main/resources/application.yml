@@ -18,3 +18,10 @@ spring:
       # maneja dinero, pero se deja igual que en los demas servicios.
       representation:
         big-decimal: decimal128
+
+# Swagger UI: http://localhost:8081/swagger-ui.html
+springdoc:
+  # Sin esto, springdoc pegaria a cada endpoint todas las respuestas del
+  # manejador de errores (400, 401, 404 y 409), aunque ese endpoint no pueda
+  # devolverlas. Asi cada endpoint muestra solo las que declara su @ApiResponse.
+  override-with-generic-response: false
