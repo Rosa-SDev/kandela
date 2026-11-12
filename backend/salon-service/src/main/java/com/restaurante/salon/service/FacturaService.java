@@ -1,5 +1,8 @@
 package com.restaurante.salon.service;
 
+import com.restaurante.salon.cliente.UsuarioRemoto;
+import com.restaurante.salon.cliente.UsuariosClient;
+import com.restaurante.salon.contador.GeneradorDeIds;
 import com.restaurante.salon.dto.EmitirFacturaDTO;
 import com.restaurante.salon.exception.ConflictoException;
 import com.restaurante.salon.exception.NoEncontradoException;
@@ -8,7 +11,6 @@ import com.restaurante.salon.model.Factura;
 import com.restaurante.salon.model.Pedido;
 import com.restaurante.salon.repository.FacturaRepository;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -19,15 +21,20 @@ import java.util.Optional;
 @Service
 public class FacturaService {
 
+    static final String COLECCION = "facturas";
+
     private final FacturaRepository facturaRepository;
     private final PedidoService pedidoService;
-    private final com.restaurante.salon.cliente.UsuariosClient usuariosClient;
+    private final GeneradorDeIds generadorDeIds;
+    private final UsuariosClient usuariosClient;
 
-    public FacturaService(FacturaRepository facturaRepository, 
+    public FacturaService(FacturaRepository facturaRepository,
                           PedidoService pedidoService,
-                          com.restaurante.salon.cliente.UsuariosClient usuariosClient) {
+                          GeneradorDeIds generadorDeIds,
+                          UsuariosClient usuariosClient) {
         this.facturaRepository = facturaRepository;
         this.pedidoService = pedidoService;
+        this.generadorDeIds = generadorDeIds;
         this.usuariosClient = usuariosClient;
     }
 
@@ -36,13 +43,13 @@ public class FacturaService {
      *
      * Orden de ejecución:
      * 1. Validar: pedido no cancelado, con platillos, sin factura previa vigente.
-     * 2. Crear la factura y llamar a emitir() para calcular impuestos y total.
+     * 2. Crear la factura y llamar a emitir(pedido) para calcular impuestos y total.
      * 3. Comprobar que el monto entregado cubra el total CON impuestos.
-     * 4. Guardar factura, registrar pago y cerrar el pedido (libera la mesa).
+     * 4. Asignar id y número del contador "facturas", insertar factura,
+     *    registrar pago y cerrar el pedido (que libera y guarda la mesa).
      */
-    @Transactional
     public Factura emitirFactura(EmitirFacturaDTO dto) {
-        com.restaurante.salon.cliente.UsuarioRemoto cajero = usuariosClient.obtener(dto.cajeroId());
+        UsuarioRemoto cajero = usuariosClient.obtener(dto.cajeroId());
         if (cajero == null) {
             throw new NoEncontradoException("El usuario " + dto.cajeroId() + " no existe.");
         }
@@ -68,18 +75,18 @@ public class FacturaService {
                     + " ya tiene la factura " + vigente.get().getNumero() + ".");
         }
 
-        long consecutivo = facturaRepository.findMaxId() + 1;
-        String numero = String.format("F-%04d", consecutivo);
-
-        Factura factura = new Factura(numero, pedido, dto.cajeroId());
-        factura.emitir();
+        Factura factura = new Factura(null, pedido.getId(), dto.cajeroId());
+        factura.emitir(pedido);
 
         if (dto.monto().compareTo(factura.getTotal()) < 0) {
             throw new ConflictoException("El monto no cubre el total de la factura ($"
                     + factura.getTotal() + ").");
         }
 
-        factura = facturaRepository.save(factura);
+        long id = generadorDeIds.siguiente(COLECCION);
+        factura.asignarId(id);
+        factura.setNumero(String.format("F-%04d", id));
+        factura = facturaRepository.insert(factura);
 
         pedido.registrarPago(dto.metodoPago(), dto.monto());
         if (pedido.getEstado() != EstadoPedido.PAGADO) {
@@ -89,21 +96,18 @@ public class FacturaService {
         return factura;
     }
 
-    @Transactional(readOnly = true)
     public List<Factura> listar() {
-        return facturaRepository.findAllConPedido();
+        return facturaRepository.findAll();
     }
 
-    @Transactional(readOnly = true)
     public Factura buscarPorId(Long id) {
-        return facturaRepository.findByIdConPedido(id)
+        return facturaRepository.findById(id)
                 .orElseThrow(() -> new NoEncontradoException("La factura " + id + " no existe."));
     }
 
     /**
      * Anula contablemente la factura sin eliminarla ni cancelar el pedido.
      */
-    @Transactional
     public Factura anularFactura(Long id) {
         Factura factura = buscarPorId(id);
 

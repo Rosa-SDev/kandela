@@ -7,6 +7,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -28,7 +29,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * La clase trabaja sobre su propia base de datos en memoria para no compartir
  * mesas ni pedidos con las demás pruebas.
  */
-@SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:salonnotasdb;DB_CLOSE_DELAY=-1")
+@SpringBootTest
+@Import(MongoDePrueba.class)
 class NotaDelPedidoTest {
 
     @Autowired

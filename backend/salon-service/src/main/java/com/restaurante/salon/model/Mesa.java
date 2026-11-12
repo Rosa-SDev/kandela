@@ -1,35 +1,26 @@
 package com.restaurante.salon.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 /**
- * Mesa física del restaurante. Su estado cambia por tres caminos:
- * al abrirse un pedido (ocupar), al cerrarse o cancelarse (liberar)
- * y al confirmarse una reserva (setEstado con RESERVADA).
+ * Mesa física del restaurante. Es un documento de la colección "mesas".
+ *
+ * Su estado cambia por tres caminos: al abrirse un pedido (ocupar), al
+ * cerrarse o cancelarse (liberar) y al confirmarse una reserva (setEstado con
+ * RESERVADA).
  */
-@Entity
-@Table(name = "mesas")
+@Document("mesas")
 public class Mesa {
 
+    /** Se guarda como _id. Es un Long que reparte GeneradorDeIds, no un ObjectId. */
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
     private int numero;
 
-    @Column(nullable = false)
     private int capacidad;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
     private EstadoMesa estado;
 
     protected Mesa() {
@@ -51,6 +42,16 @@ public class Mesa {
     }
 
     public void setId(Long id) {
+        this.id = id;
+    }
+
+    /**
+     * Fija el id una sola vez, al crear la mesa.
+     */
+    public void asignarId(Long id) {
+        if (this.id != null) {
+            throw new IllegalStateException("La mesa ya tiene el id " + this.id + ".");
+        }
         this.id = id;
     }
 

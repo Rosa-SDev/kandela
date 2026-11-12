@@ -1,53 +1,40 @@
 package com.restaurante.salon.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
-
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 /**
  * Línea de un pedido que guarda una copia congelada de los datos del platillo.
  *
+ * Va embebida dentro del documento Pedido (no tiene colección propia): una
+ * línea nunca se consulta sola, siempre entra y sale como parte del pedido.
+ * Conserva un id numérico del contador "lineas" porque DELETE
+ * /api/pedidos/{id}/platillos/{lineaId} la identifica por ese número.
+ *
  * Desnormalización deliberada: se copian nombre y precioUnitario para que
  * aumentos futuros en la carta no alteren facturas históricas ya emitidas.
- * Cada platillo pedido representa una fila independiente en la tabla.
  */
-@Entity
-@Table(name = "pedido_platillos")
 public class LineaPedido {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private static final int DECIMALES = 2;
+
     private Long id;
 
-    @Column(nullable = false)
-    private Long platilloId; // Referencia al microservicio carta-service, sin FK en BD
+    private Long platilloId; // Referencia al microservicio carta-service
 
-    @Column(nullable = false)
     private String nombre; // Copia congelada
 
-    @Column(name = "precio_unitario", precision = 12, scale = 2, nullable = false)
     private BigDecimal precioUnitario; // Copia congelada
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "pedido_id")
-    private Pedido pedido;
 
     protected LineaPedido() {
     }
 
-    public LineaPedido(Long platilloId, String nombre, BigDecimal precioUnitario, Pedido pedido) {
+    public LineaPedido(Long platilloId, String nombre, BigDecimal precioUnitario) {
         this.platilloId = platilloId;
         this.nombre = nombre;
-        this.precioUnitario = precioUnitario;
-        this.pedido = pedido;
+        this.precioUnitario = precioUnitario != null
+                ? precioUnitario.setScale(DECIMALES, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO.setScale(DECIMALES);
     }
 
     public Long getId() {
@@ -55,6 +42,13 @@ public class LineaPedido {
     }
 
     public void setId(Long id) {
+        this.id = id;
+    }
+
+    public void asignarId(Long id) {
+        if (this.id != null) {
+            throw new IllegalStateException("La línea ya tiene el id " + this.id + ".");
+        }
         this.id = id;
     }
 
@@ -80,13 +74,5 @@ public class LineaPedido {
 
     public void setPrecioUnitario(BigDecimal precioUnitario) {
         this.precioUnitario = precioUnitario;
-    }
-
-    public Pedido getPedido() {
-        return pedido;
-    }
-
-    public void setPedido(Pedido pedido) {
-        this.pedido = pedido;
     }
 }

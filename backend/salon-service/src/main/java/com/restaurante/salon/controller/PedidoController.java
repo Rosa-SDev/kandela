@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Controlador REST para la gestión de pedidos y sus líneas de platillos.
@@ -41,28 +42,30 @@ public class PedidoController {
     @PostMapping
     public ResponseEntity<PedidoDTO> crear(@Valid @RequestBody CrearPedidoDTO datos) {
         Pedido creado = servicio.crear(datos);
-        return ResponseEntity.status(HttpStatus.CREATED).body(PedidoDTO.de(creado));
+        return ResponseEntity.status(HttpStatus.CREATED).body(aDto(creado));
     }
 
     /** 200 con el listado de pedidos, con filtro opcional por estado. */
     @GetMapping
     public List<PedidoDTO> listar(@RequestParam(required = false) EstadoPedido estado) {
-        return servicio.listar(estado).stream()
-                .map(PedidoDTO::de)
+        List<Pedido> pedidos = servicio.listar(estado);
+        Map<Long, Integer> numerosDeMesa = servicio.numerosDeMesa(pedidos);
+        return pedidos.stream()
+                .map(p -> PedidoDTO.de(p, numerosDeMesa.get(p.getMesaId())))
                 .toList();
     }
 
     /** 200 con el pedido consultado, o 404 si no existe. */
     @GetMapping("/{id}")
     public PedidoDTO buscar(@PathVariable Long id) {
-        return PedidoDTO.de(servicio.buscarPorId(id));
+        return aDto(servicio.buscarPorId(id));
     }
 
     /** 200 con el pedido y su nota ya cambiada. */
     @PatchMapping("/{id}")
     public PedidoDTO cambiarNota(@PathVariable Long id,
                                  @Valid @RequestBody CambiarNotaPedidoDTO datos) {
-        return PedidoDTO.de(servicio.cambiarNota(id, datos.observaciones()));
+        return aDto(servicio.cambiarNota(id, datos.observaciones()));
     }
 
     /** 201 con el pedido actualizado tras agregar una línea de platillo. */
@@ -70,7 +73,7 @@ public class PedidoController {
     @ResponseStatus(HttpStatus.CREATED)
     public PedidoDTO agregarPlatillo(@PathVariable Long id,
                                      @Valid @RequestBody AgregarPlatilloDTO datos) {
-        return PedidoDTO.de(servicio.agregarPlatillo(id, datos));
+        return aDto(servicio.agregarPlatillo(id, datos));
     }
 
     /** 204 tras remover una línea de platillo del pedido. */
@@ -84,6 +87,10 @@ public class PedidoController {
     @PatchMapping("/{id}/estado")
     public PedidoDTO cambiarEstado(@PathVariable Long id,
                                    @Valid @RequestBody CambiarEstadoPedidoDTO datos) {
-        return PedidoDTO.de(servicio.cambiarEstado(id, datos.estado()));
+        return aDto(servicio.cambiarEstado(id, datos.estado()));
+    }
+
+    private PedidoDTO aDto(Pedido pedido) {
+        return PedidoDTO.de(pedido, servicio.numeroDeMesa(pedido.getMesaId()));
     }
 }

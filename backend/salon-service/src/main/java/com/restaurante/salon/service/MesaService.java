@@ -1,12 +1,12 @@
 package com.restaurante.salon.service;
 
+import com.restaurante.salon.contador.GeneradorDeIds;
 import com.restaurante.salon.exception.ConflictoException;
 import com.restaurante.salon.exception.NoEncontradoException;
 import com.restaurante.salon.model.EstadoMesa;
 import com.restaurante.salon.model.Mesa;
 import com.restaurante.salon.repository.MesaRepository;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -16,21 +16,24 @@ import java.util.List;
 @Service
 public class MesaService {
 
-    private final MesaRepository mesaRepository;
+    static final String COLECCION = "mesas";
 
-    public MesaService(MesaRepository mesaRepository) {
+    private final MesaRepository mesaRepository;
+    private final GeneradorDeIds generadorDeIds;
+
+    public MesaService(MesaRepository mesaRepository, GeneradorDeIds generadorDeIds) {
         this.mesaRepository = mesaRepository;
+        this.generadorDeIds = generadorDeIds;
     }
 
-    @Transactional
     public Mesa crear(Mesa mesa) {
         if (mesaRepository.existsByNumero(mesa.getNumero())) {
             throw new ConflictoException("Ya existe una mesa con el número " + mesa.getNumero() + ".");
         }
-        return mesaRepository.save(mesa);
+        mesa.asignarId(generadorDeIds.siguiente(COLECCION));
+        return mesaRepository.insert(mesa);
     }
 
-    @Transactional(readOnly = true)
     public List<Mesa> listar(EstadoMesa estado) {
         if (estado != null) {
             return mesaRepository.findByEstado(estado);
@@ -38,13 +41,11 @@ public class MesaService {
         return mesaRepository.findAll();
     }
 
-    @Transactional(readOnly = true)
     public Mesa buscarPorId(Long id) {
         return mesaRepository.findById(id)
                 .orElseThrow(() -> new NoEncontradoException("La mesa " + id + " no existe."));
     }
 
-    @Transactional
     public Mesa actualizar(Long id, Mesa datos) {
         Mesa mesa = buscarPorId(id);
 
@@ -61,7 +62,6 @@ public class MesaService {
         return mesaRepository.save(mesa);
     }
 
-    @Transactional
     public void eliminar(Long id) {
         Mesa mesa = buscarPorId(id);
         if (mesa.getEstado() == EstadoMesa.OCUPADA) {
