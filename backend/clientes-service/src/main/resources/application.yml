@@ -23,3 +23,10 @@ spring:
 servicios:
   salon:
     url: http://localhost:8084
+
+# Swagger UI: http://localhost:8083/swagger-ui.html
+springdoc:
+  # Sin esto, springdoc pegaria a cada endpoint todas las respuestas del
+  # manejador de errores (400, 404, 409 y 503), aunque ese endpoint no pueda
+  # devolverlas. Asi cada endpoint muestra solo las que declara su @ApiResponse.
+  override-with-generic-response: false
