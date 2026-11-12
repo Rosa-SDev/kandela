@@ -9,7 +9,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Inserta los usuarios de demostración de Raíz y Sazón al arrancar, solo si la
- * tabla está vacía. Con H2 en memoria esto se cumple en cada reinicio.
+ * colección está vacía. MongoDB conserva los datos entre arranques: sin esta
+ * guarda, cada reinicio intentaría crear los cinco otra vez.
  *
  * El orden es importante: los id se generan en orden de inserción y los demás
  * servicios los referencian (los meseros 2 y 3 aparecen en reservas y pedidos).

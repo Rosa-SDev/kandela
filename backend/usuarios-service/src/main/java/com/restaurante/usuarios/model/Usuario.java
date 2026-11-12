@@ -1,35 +1,37 @@
 package com.restaurante.usuarios.model;
 
-import jakarta.persistence.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 /**
  * Persona que usa el sistema. Es abstracta porque no existe un usuario generico:
  * todo usuario es Administrador, Mesero, Cocinero o Cajero.
- * Los cuatro roles no agregan atributos propios; solo se diferencian por el
- * valor de la columna discriminadora "rol".
+ *
+ * Los cuatro roles viven en una sola coleccion, "usuarios". Los roles no
+ * agregan atributos propios; lo unico que los distingue es el campo _class de
+ * cada documento, donde Spring guarda el @TypeAlias de la subclase
+ * ("ADMINISTRADOR", "MESERO"...). Al leer, Spring mira ese campo y construye la
+ * subclase correcta, asi que Rol.de(usuario) sigue funcionando igual.
  */
-@Entity
-@Table(name = "usuarios")
-@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
-@DiscriminatorColumn(name = "rol", discriminatorType = DiscriminatorType.STRING)
+@Document("usuarios")
 public abstract class Usuario {
 
+    /** Se guarda como _id. Es un Long que reparte GeneradorDeIds, no un ObjectId. */
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
     private String nombre;
 
-    @Column(nullable = false, unique = true)
     private String correo;
 
-    @Column(nullable = false)
     private String passwordHash;
 
-    @Column(nullable = false)
     private boolean activo;
 
+    /**
+     * Constructor vacio para Spring Data: arma el objeto y despues rellena los
+     * campos con los del documento.
+     */
     protected Usuario() { }
 
     protected Usuario(String nombre, String correo, String passwordHash) {
@@ -41,6 +43,17 @@ public abstract class Usuario {
 
     public Long getId() {
         return id;
+    }
+
+    /**
+     * Fija el id una sola vez, al crear el usuario. Un usuario que ya tiene id
+     * no puede recibir otro: cambiarlo equivaldria a otro usuario.
+     */
+    public void asignarId(Long id) {
+        if (this.id != null) {
+            throw new IllegalStateException("El usuario ya tiene el id " + this.id + ".");
+        }
+        this.id = id;
     }
 
     public String getNombre() {
