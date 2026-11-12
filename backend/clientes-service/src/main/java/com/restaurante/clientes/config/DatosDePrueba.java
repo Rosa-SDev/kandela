@@ -41,15 +41,15 @@ public class DatosDePrueba implements CommandLineRunner {
         Cliente marcela = clienteRepository.save(new Cliente("Marcela Gómez", "1009988776", "3009988776"));
 
         // Marcela: hoy 19:00, 6 personas, mesa 4, mesero 2, confirmada.
-        Reserva deMarcela = new Reserva(aLas(0, 19, 0), 6, marcela, 4L, 2L);
+        Reserva deMarcela = new Reserva(aLas(0, 19, 0), 6, marcela.getId(), 4L, 2L);
         deMarcela.confirmar();
         reservaRepository.save(deMarcela);
 
         // Ana: mañana 19:00, 4 personas, mesa 2, mesero 3, pendiente.
-        reservaRepository.save(new Reserva(aLas(1, 19, 0), 4, ana, 2L, 3L));
+        reservaRepository.save(new Reserva(aLas(1, 19, 0), 4, ana.getId(), 2L, 3L));
 
         // Luis: pasado mañana 20:30, 2 personas, mesa 1, mesero 2, pendiente.
-        reservaRepository.save(new Reserva(aLas(2, 20, 30), 2, luis, 1L, 2L));
+        reservaRepository.save(new Reserva(aLas(2, 20, 30), 2, luis.getId(), 1L, 2L));
     }
 
     /** Fecha y hora a partir de hoy: {@code dias} días adelante, a la hora y minuto dados. */

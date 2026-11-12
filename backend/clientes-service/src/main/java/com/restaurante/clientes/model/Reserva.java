@@ -8,16 +8,18 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 /**
  * Reserva de una mesa a nombre de un cliente.
  *
- * mesaId y meseroId son solo el identificador (Long), no el objeto: Mesa vive
- * en salon-service y Mesero en usuarios-service, cada uno con su propia base
- * de datos. No hay relación JPA posible entre servicios distintos.
+ * clienteId, mesaId y meseroId son solo el identificador (Long), no el objeto.
+ * Mesa vive en salon-service y Mesero en usuarios-service, cada uno con su
+ * propia base de datos. El cliente sí vive en este servicio, pero tampoco se
+ * guarda dentro de la reserva: un cliente acumula reservas sin límite y tiene
+ * vida propia, y si cambia su teléfono el cambio debe verse en todas sus
+ * reservas. Por eso la reserva apunta al cliente por su id y el nombre se
+ * busca al armar la respuesta (ver ReservaService).
  *
  * Por lo mismo, confirmar()/cancelar() aquí solo cambian el estado propio de
  * la reserva — el original también tocaba el estado de la Mesa, pero eso ya
@@ -39,9 +41,7 @@ public class Reserva {
     @Enumerated(EnumType.STRING)
     private EstadoReserva estado;
 
-    @ManyToOne
-    @JoinColumn(name = "cliente_id")
-    private Cliente cliente;
+    private Long clienteId;
 
     private Long mesaId;
     private Long meseroId;
@@ -50,11 +50,11 @@ public class Reserva {
         // constructor vacío que exige JPA
     }
 
-    public Reserva(LocalDateTime fechaHora, int numPersonas, Cliente cliente,
+    public Reserva(LocalDateTime fechaHora, int numPersonas, Long clienteId,
                     Long mesaId, Long meseroId) {
         this.fechaHora = fechaHora;
         this.numPersonas = numPersonas;
-        this.cliente = cliente;
+        this.clienteId = clienteId;
         this.mesaId = mesaId;
         this.meseroId = meseroId;
         this.estado = EstadoReserva.PENDIENTE;
@@ -92,12 +92,12 @@ public class Reserva {
         this.estado = estado;
     }
 
-    public Cliente getCliente() {
-        return cliente;
+    public Long getClienteId() {
+        return clienteId;
     }
 
-    public void setCliente(Cliente cliente) {
-        this.cliente = cliente;
+    public void setClienteId(Long clienteId) {
+        this.clienteId = clienteId;
     }
 
     public Long getMesaId() {
@@ -130,7 +130,7 @@ public class Reserva {
     public String toString() {
         return "Reserva #" + id
                 + " - " + estado
-                + " - " + (cliente != null ? cliente.getNombre() : "-")
+                + " - cliente " + clienteId
                 + " - mesa " + mesaId
                 + " - " + numPersonas + " personas"
                 + " - " + fechaHora;
