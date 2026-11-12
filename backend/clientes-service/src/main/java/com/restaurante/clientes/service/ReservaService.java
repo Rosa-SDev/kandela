@@ -80,7 +80,21 @@ public class ReservaService {
 
         Reserva reserva = new Reserva(datos.fechaHora(), datos.numPersonas(), cliente.getId(),
                 datos.mesaId(), datos.meseroId());
-        return ReservaDTO.de(reservaRepository.save(reserva), cliente.getNombre());
+        return ReservaDTO.de(registrar(reserva), cliente.getNombre());
+    }
+
+    /**
+     * Es el único sitio que guarda reservas nuevas, y por eso el único que
+     * asigna ids. Lo usan crear, después de validar la petición, y los datos de
+     * demostración, que ya vienen correctos y no deben depender de que el salón
+     * esté encendido al arrancar.
+     *
+     * Se guarda con insert y no con save: insert falla si el id ya existe,
+     * mientras que save reemplazaría en silencio la reserva que tuviera ese id.
+     */
+    public Reserva registrar(Reserva reserva) {
+        reserva.asignarId(reservaRepository.siguienteId());
+        return reservaRepository.insert(reserva);
     }
 
     public ReservaDTO cambiarEstado(Long id, EstadoReserva nuevoEstado) {

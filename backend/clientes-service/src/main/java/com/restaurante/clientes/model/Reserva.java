@@ -2,13 +2,8 @@ package com.restaurante.clientes.model;
 
 import java.time.LocalDateTime;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 /**
  * Reserva de una mesa a nombre de un cliente.
@@ -26,19 +21,18 @@ import jakarta.persistence.Table;
  * no es posible sin el objeto real. La mesa y su capacidad se validan al
  * crear la reserva, consultando al salón (ver ReservaService).
  */
-@Entity
-@Table(name = "reservas")
+@Document("reservas")
 public class Reserva {
 
+    /** Se guarda como _id. Es un Long que reparte GeneradorDeIds, no un ObjectId. */
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private LocalDateTime fechaHora;
 
     private int numPersonas;
 
-    @Enumerated(EnumType.STRING)
+    /** MongoDB guarda el enum por su nombre ("PENDIENTE", "CONFIRMADA"...). */
     private EstadoReserva estado;
 
     private Long clienteId;
@@ -47,7 +41,7 @@ public class Reserva {
     private Long meseroId;
 
     protected Reserva() {
-        // constructor vacío que exige JPA
+        // constructor vacío que usa Spring Data para leer el documento
     }
 
     public Reserva(LocalDateTime fechaHora, int numPersonas, Long clienteId,
@@ -64,7 +58,14 @@ public class Reserva {
         return id;
     }
 
-    public void setId(Long id) {
+    /**
+     * Fija el id una sola vez, al registrar la reserva. Una reserva que ya tiene
+     * id no puede recibir otro.
+     */
+    public void asignarId(Long id) {
+        if (this.id != null) {
+            throw new IllegalStateException("La reserva ya tiene el id " + this.id + ".");
+        }
         this.id = id;
     }
 

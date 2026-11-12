@@ -1,29 +1,30 @@
 package com.restaurante.clientes.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
 
-@Entity
-@Table(name = "clientes")
+
+/**
+ * Un cliente del restaurante. Es un documento de la colección "clientes".
+ *
+ * Sus reservas no se guardan aquí dentro: viven en su propia colección y
+ * apuntan al cliente por su id (ver Reserva).
+ */
+@Document("clientes")
 public class Cliente {
 
+    /** Se guarda como _id. Es un Long que reparte GeneradorDeIds, no un ObjectId. */
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private String nombre;
 
-    @Column(nullable = false, unique = true)
     private String documento;
 
     private String telefono;
 
     protected Cliente() {
-        // constructor vacío que exige JPA
+        // constructor vacío que usa Spring Data para leer el documento
     }
 
     public Cliente(String nombre, String documento, String telefono) {
@@ -36,7 +37,14 @@ public class Cliente {
         return id;
     }
 
-    public void setId(Long id) {
+    /**
+     * Fija el id una sola vez, al crear el cliente. Un cliente que ya tiene id
+     * no puede recibir otro: cambiarlo equivaldría a otro cliente.
+     */
+    public void asignarId(Long id) {
+        if (this.id != null) {
+            throw new IllegalStateException("El cliente ya tiene el id " + this.id + ".");
+        }
         this.id = id;
     }
 

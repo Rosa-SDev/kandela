@@ -34,13 +34,23 @@ public class ClienteService {
         return ClienteDTO.de(buscarEntidad(id));
     }
 
+    /**
+     * Es el único sitio que crea clientes, también para los datos de
+     * demostración, y por eso el único que asigna ids.
+     *
+     * El id se pide después de comprobar el documento, para no gastar un número
+     * en un cliente que se va a rechazar. Se guarda con insert y no con save:
+     * insert falla si el id ya existe, mientras que save reemplazaría en
+     * silencio al cliente que tuviera ese id.
+     */
     public ClienteDTO crear(CrearClienteDTO datos) {
         if (clienteRepository.existsByDocumento(datos.documento())) {
             throw new ConflictoException(
                 "Ya existe un cliente con el documento " + datos.documento() + ".");
         }
         Cliente cliente = new Cliente(datos.nombre(), datos.documento(), datos.telefono());
-        return ClienteDTO.de(clienteRepository.save(cliente));
+        cliente.asignarId(clienteRepository.siguienteId());
+        return ClienteDTO.de(clienteRepository.insert(cliente));
     }
 
     public ClienteDTO actualizar(Long id, CrearClienteDTO datos) {
@@ -56,6 +66,7 @@ public class ClienteService {
         cliente.setNombre(datos.nombre());
         cliente.setDocumento(datos.documento());
         cliente.setTelefono(datos.telefono());
+        // MongoDB no guarda solo lo que cambió: save reemplaza el documento completo.
         return ClienteDTO.de(clienteRepository.save(cliente));
     }
 

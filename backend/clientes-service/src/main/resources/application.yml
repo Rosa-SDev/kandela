@@ -1,26 +1,23 @@
 server:
-  port: 8083                          # el puerto de TU servicio
+  port: 8083
 
 spring:
   application:
     name: clientes-service
 
-  datasource:
-    url: jdbc:h2:mem:clientesdb;DB_CLOSE_DELAY=-1   # base de datos EN MEMORIA
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+  # MongoDB corre en Docker (docker-compose.yml en la raiz del repositorio).
+  # replicaSet=rs0 hace que el driver hable con el replica set y no con un nodo suelto.
+  mongodb:
+    uri: mongodb://localhost:27018/clientesdb?replicaSet=rs0
 
-  jpa:
-    hibernate:
-      ddl-auto: update                 # crea las tablas a partir de tus @Entity
-    show-sql: true                     # muestra el SQL en la consola
-    open-in-view: false                # evita conexiones abiertas durante toda la petición
-
-  h2:
-    console:
-      enabled: true
-      path: /h2-console                # http://localhost:8083/h2-console
+  data:
+    mongodb:
+      # Crea al arrancar los indices declarados con @Indexed.
+      auto-index-creation: true
+      # Los BigDecimal se guardan como NumberDecimal (Decimal128). Clientes no
+      # maneja dinero, pero se deja igual que en los demas servicios.
+      representation:
+        big-decimal: decimal128
 
 # Direcciones de los demás servicios que este consulta.
 servicios:
