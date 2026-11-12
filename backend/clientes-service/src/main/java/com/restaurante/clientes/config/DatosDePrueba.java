@@ -3,21 +3,27 @@ package com.restaurante.clientes.config;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
+import com.restaurante.clientes.contador.GeneradorDeIds;
 import com.restaurante.clientes.dto.ClienteDTO;
 import com.restaurante.clientes.dto.CrearClienteDTO;
 import com.restaurante.clientes.model.Reserva;
 import com.restaurante.clientes.repository.ClienteRepository;
+import com.restaurante.clientes.repository.ReservaRepository;
 import com.restaurante.clientes.service.ClienteService;
 import com.restaurante.clientes.service.ReservaService;
 
 /**
  * Carga los clientes y las reservas de demostración de Raíz y Sazón.
  *
- * Solo carga si no hay clientes: MongoDB conserva los datos entre arranques y,
- * sin esta guarda, cada reinicio intentaría crearlos otra vez.
+ * Sin perfil, solo carga si no hay clientes: MongoDB conserva los datos entre
+ * arranques y, sin esta guarda, cada reinicio intentaría crearlos otra vez.
+ * Con el perfil demo, vacía las colecciones y recarga los datos de ejemplo.
  *
  * Se crean con los servicios, el mismo camino que usa la API, para que reciban
  * su id del contador. El orden importa: Ana = 1, Luis = 2, Marcela = 3.
@@ -31,20 +37,45 @@ import com.restaurante.clientes.service.ReservaService;
 @Component
 public class DatosDePrueba implements CommandLineRunner {
 
+    private static final Logger LOG = LoggerFactory.getLogger(DatosDePrueba.class);
+
+    /** Con este perfil activo, cada arranque deja clientes y reservas como recién instalados. */
+    static final String PERFIL_DEMO = "demo";
+
     private final ClienteRepository clienteRepository;
+    private final ReservaRepository reservaRepository;
     private final ClienteService clienteService;
     private final ReservaService reservaService;
+    private final GeneradorDeIds generadorDeIds;
+    private final Environment entorno;
 
-    public DatosDePrueba(ClienteRepository clienteRepository, ClienteService clienteService,
-                         ReservaService reservaService) {
+    public DatosDePrueba(ClienteRepository clienteRepository, ReservaRepository reservaRepository,
+                         ClienteService clienteService, ReservaService reservaService,
+                         GeneradorDeIds generadorDeIds, Environment entorno) {
         this.clienteRepository = clienteRepository;
+        this.reservaRepository = reservaRepository;
         this.clienteService = clienteService;
         this.reservaService = reservaService;
+        this.generadorDeIds = generadorDeIds;
+        this.entorno = entorno;
     }
 
+    /**
+     * Con el perfil demo: vacía "reservas", "clientes" y "contadores" antes de
+     * cargar. Al vaciar los contadores, los ids vuelven a empezar en 1.
+     *
+     * Se vacían las colecciones en lugar de borrar la base: borrarla eliminaría
+     * también el índice único del documento, que Spring crea al arrancar, antes
+     * de que se ejecute esta clase.
+     */
     @Override
     public void run(String... args) {
-        if (clienteRepository.count() > 0) {
+        if (entorno.matchesProfiles(PERFIL_DEMO)) {
+            reservaRepository.deleteAll();
+            clienteRepository.deleteAll();
+            generadorDeIds.reiniciar();
+            LOG.info("Perfil demo: clientes y reservas vaciados, contadores reiniciados.");
+        } else if (clienteRepository.count() > 0) {
             return;
         }
 
@@ -66,6 +97,9 @@ public class DatosDePrueba implements CommandLineRunner {
 
         // Luis: pasado mañana 20:30, 2 personas, mesa 1, mesero 2, pendiente.
         reservaService.registrar(new Reserva(aLas(2, 20, 30), 2, luis.id(), 1L, 2L));
+
+        LOG.info("Cargados {} clientes y {} reservas de demostración.",
+                clienteRepository.count(), reservaRepository.count());
     }
 
     /** Fecha y hora a partir de hoy: {@code dias} días adelante, a la hora y minuto dados. */
