@@ -1,6 +1,7 @@
 package com.restaurante.usuarios.model;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 /**
@@ -22,6 +23,15 @@ public abstract class Usuario {
 
     private String nombre;
 
+    /**
+     * Indice unico: MongoDB rechaza un segundo usuario con el mismo correo,
+     * aunque dos peticiones lleguen a la vez.
+     *
+     * La collation con strength 2 compara sin distinguir mayusculas, igual que
+     * existsByCorreoIgnoreCase: "Laura@raizysazon.co" y "laura@raizysazon.co"
+     * chocan.
+     */
+    @Indexed(unique = true, collation = "{ 'locale': 'es', 'strength': 2 }")
     private String correo;
 
     private String passwordHash;
