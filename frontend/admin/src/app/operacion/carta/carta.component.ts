@@ -52,7 +52,7 @@ export class CartaComponent implements OnInit {
   errorSrv = signal<{ titulo: string; texto: string } | null>(null);
   avisoOk = signal<{ titulo: string; texto: string } | null>(null);
 
-  categoriasDisponibles = ['Entradas', 'Platos fuertes', 'Bebidas', 'Postres'];
+  categoriasDisponibles = ['Entradas', 'Sopas', 'Fuertes', 'Postres', 'Bebidas'];
 
   // Pestañas / Filtros calculados dinámicamente a partir de las categorías de los platillos cargados
   filtrosCategorias = computed<FiltroItem[]>(() => {
