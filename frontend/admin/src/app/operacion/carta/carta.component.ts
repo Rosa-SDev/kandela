@@ -54,18 +54,18 @@ export class CartaComponent implements OnInit {
 
   categoriasDisponibles = ['Entradas', 'Platos fuertes', 'Bebidas', 'Postres'];
 
-  // Pestañas / Filtros calculados dinámicamente con cantidad
+  // Pestañas / Filtros calculados dinámicamente a partir de las categorías de los platillos cargados
   filtrosCategorias = computed<FiltroItem[]>(() => {
     const list = this.platillos();
-    const items: FiltroItem[] = [
-      { id: 'todas', texto: 'Todas', cantidad: list.length }
+    const categorias = [...new Set(list.map(p => p.categoria))];
+    return [
+      { id: 'todas', texto: 'Todas', cantidad: list.length },
+      ...categorias.map(cat => ({
+        id: cat,
+        texto: cat,
+        cantidad: list.filter(p => p.categoria === cat).length
+      }))
     ];
-
-    for (const cat of this.categoriasDisponibles) {
-      const cantidad = list.filter(p => p.categoria.toLowerCase() === cat.toLowerCase()).length;
-      items.push({ id: cat, texto: cat, cantidad });
-    }
-    return items;
   });
 
   // Platillos según la categoría activa
@@ -73,7 +73,7 @@ export class CartaComponent implements OnInit {
     const cat = this.categoriaActiva();
     const list = this.platillos();
     if (cat === 'todas') return list;
-    return list.filter(p => p.categoria.toLowerCase() === cat.toLowerCase());
+    return list.filter(p => p.categoria === cat);
   });
 
   // Drawer (Crear / Editar)
