@@ -11,6 +11,7 @@ import com.restaurante.salon.model.Factura;
 import com.restaurante.salon.model.Pedido;
 import com.restaurante.salon.repository.FacturaRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -48,6 +49,7 @@ public class FacturaService {
      * 4. Asignar id y número del contador "facturas", insertar factura,
      *    registrar pago y cerrar el pedido (que libera y guarda la mesa).
      */
+    @Transactional
     public Factura emitirFactura(EmitirFacturaDTO dto) {
         UsuarioRemoto cajero = usuariosClient.obtener(dto.cajeroId());
         if (cajero == null) {

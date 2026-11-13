@@ -17,6 +17,7 @@ import com.restaurante.salon.model.Pedido;
 import com.restaurante.salon.repository.MesaRepository;
 import com.restaurante.salon.repository.PedidoRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
@@ -67,6 +68,7 @@ public class PedidoService {
      * Una mesa RESERVADA sí acepta pedido (transición natural a OCUPADA).
      * Una mesa OCUPADA rechaza un nuevo pedido (HTTP 409).
      */
+    @Transactional
     public Pedido crear(CrearPedidoDTO dto) {
         UsuarioRemoto mesero = usuariosClient.obtener(dto.meseroId());
         if (mesero == null) {
@@ -198,6 +200,7 @@ public class PedidoService {
      *
      * Cancelar libera la mesa y la guarda explícitamente en MongoDB.
      */
+    @Transactional
     public Pedido cambiarEstado(Long id, EstadoPedido nuevoEstado) {
         Pedido pedido = buscarPorId(id);
 
@@ -243,6 +246,7 @@ public class PedidoService {
     /**
      * Cierra el pedido y libera su mesa explícitamente en MongoDB. Requiere que esté pagado.
      */
+    @Transactional
     public Pedido cerrar(Pedido pedido) {
         if (pedido.getEstado() == EstadoPedido.CANCELADO) {
             throw new ConflictoException("No se puede cerrar un pedido cancelado.");

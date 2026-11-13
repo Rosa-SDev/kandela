@@ -21,6 +21,6 @@ public class MongoDePrueba {
     @Bean
     @ServiceConnection
     MongoDBContainer contenedorMongo() {
-        return new MongoDBContainer("mongo:8");
+        return new MongoDBContainer("mongo:8").withReplicaSet();
     }
 }
