@@ -1,6 +1,7 @@
 package com.restaurante.salon.model;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.math.BigDecimal;
@@ -25,6 +26,8 @@ public class Factura {
     @Id
     private Long id;
 
+    /** Índice único: garantiza que no existan dos facturas con el mismo número. */
+    @Indexed(unique = true)
     private String numero;
 
     private LocalDateTime fecha;
