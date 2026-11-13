@@ -5,12 +5,14 @@ import com.restaurante.salon.model.EstadoPedido;
 import com.restaurante.salon.model.LineaPedido;
 import com.restaurante.salon.model.Mesa;
 import com.restaurante.salon.model.Pedido;
+import com.restaurante.salon.repository.FacturaRepository;
 import com.restaurante.salon.repository.MesaRepository;
 import com.restaurante.salon.repository.PedidoRepository;
 import com.restaurante.salon.service.MesaService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -30,27 +32,59 @@ public class DatosDeDemostracion implements CommandLineRunner {
 
     private static final Logger LOG = LoggerFactory.getLogger(DatosDeDemostracion.class);
 
+    /** Con este perfil activo, cada arranque deja el salón como recién instalado. */
+    static final String PERFIL_DEMO = "demo";
+
     private final MesaService mesaService;
     private final MesaRepository mesaRepository;
     private final PedidoRepository pedidoRepository;
+    private final FacturaRepository facturaRepository;
     private final GeneradorDeIds generadorDeIds;
+    private final Environment entorno;
 
     public DatosDeDemostracion(MesaService mesaService,
                                MesaRepository mesaRepository,
                                PedidoRepository pedidoRepository,
-                               GeneradorDeIds generadorDeIds) {
+                               FacturaRepository facturaRepository,
+                               GeneradorDeIds generadorDeIds,
+                               Environment entorno) {
         this.mesaService = mesaService;
         this.mesaRepository = mesaRepository;
         this.pedidoRepository = pedidoRepository;
+        this.facturaRepository = facturaRepository;
         this.generadorDeIds = generadorDeIds;
+        this.entorno = entorno;
     }
 
+    /**
+     * Con el perfil demo: vacía mesas, pedidos, facturas y contadores, y vuelve
+     * a cargar los datos iniciales desde el id 1.
+     *
+     * Se vacían las colecciones en lugar de borrar la base: borrarla eliminaría
+     * también los índices únicos creados al arrancar, antes de que se ejecute
+     * esta clase.
+     *
+     * Sin el perfil: solo carga si todas las colecciones están vacías, para
+     * que los cambios hechos después persistan entre reinicios.
+     */
     @Override
     public void run(String... args) {
-        if (mesaRepository.count() > 0) {
+        if (entorno.matchesProfiles(PERFIL_DEMO)) {
+            facturaRepository.deleteAll();
+            pedidoRepository.deleteAll();
+            mesaRepository.deleteAll();
+            generadorDeIds.reiniciar();
+            LOG.info("Perfil demo: salón vaciado y contadores reiniciados.");
+        } else if (mesaRepository.count() > 0
+                || pedidoRepository.count() > 0
+                || facturaRepository.count() > 0) {
             return;
         }
 
+        cargarSalon();
+    }
+
+    private void cargarSalon() {
         List<Mesa> mesas = List.of(
                 new Mesa(1, 2),
                 new Mesa(2, 4),
