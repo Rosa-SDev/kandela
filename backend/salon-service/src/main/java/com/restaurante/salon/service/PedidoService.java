@@ -2,6 +2,9 @@ package com.restaurante.salon.service;
 
 import com.restaurante.salon.cliente.CartaClient;
 import com.restaurante.salon.cliente.PlatilloRemoto;
+import com.restaurante.salon.cliente.UsuarioRemoto;
+import com.restaurante.salon.cliente.UsuariosClient;
+import com.restaurante.salon.contador.GeneradorDeIds;
 import com.restaurante.salon.dto.AgregarPlatilloDTO;
 import com.restaurante.salon.dto.CrearPedidoDTO;
 import com.restaurante.salon.exception.ConflictoException;
@@ -11,18 +14,24 @@ import com.restaurante.salon.model.EstadoPedido;
 import com.restaurante.salon.model.LineaPedido;
 import com.restaurante.salon.model.Mesa;
 import com.restaurante.salon.model.Pedido;
+import com.restaurante.salon.repository.MesaRepository;
 import com.restaurante.salon.repository.PedidoRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Reglas de negocio de los pedidos del restaurante.
  */
 @Service
 public class PedidoService {
+
+    static final String COLECCION_PEDIDOS = "pedidos";
+    static final String COLECCION_LINEAS = "lineas";
 
     /**
      * El paso siguiente de cada estado en el recorrido del pedido.
@@ -37,16 +46,19 @@ public class PedidoService {
             EstadoPedido.EN_PREPARACION, EstadoPedido.SERVIDO);
 
     private final PedidoRepository pedidoRepository;
-    private final MesaService mesaService;
+    private final MesaRepository mesaRepository;
+    private final GeneradorDeIds generadorDeIds;
     private final CartaClient cartaClient;
-    private final com.restaurante.salon.cliente.UsuariosClient usuariosClient;
+    private final UsuariosClient usuariosClient;
 
     public PedidoService(PedidoRepository pedidoRepository,
-                         MesaService mesaService,
+                         MesaRepository mesaRepository,
+                         GeneradorDeIds generadorDeIds,
                          CartaClient cartaClient,
-                         com.restaurante.salon.cliente.UsuariosClient usuariosClient) {
+                         UsuariosClient usuariosClient) {
         this.pedidoRepository = pedidoRepository;
-        this.mesaService = mesaService;
+        this.mesaRepository = mesaRepository;
+        this.generadorDeIds = generadorDeIds;
         this.cartaClient = cartaClient;
         this.usuariosClient = usuariosClient;
     }
@@ -58,7 +70,7 @@ public class PedidoService {
      */
     @Transactional
     public Pedido crear(CrearPedidoDTO dto) {
-        com.restaurante.salon.cliente.UsuarioRemoto mesero = usuariosClient.obtener(dto.meseroId());
+        UsuarioRemoto mesero = usuariosClient.obtener(dto.meseroId());
         if (mesero == null) {
             throw new NoEncontradoException("El usuario " + dto.meseroId() + " no existe.");
         }
@@ -69,29 +81,57 @@ public class PedidoService {
             throw new ConflictoException(mesero.nombre() + " está inactivo.");
         }
 
-        Mesa mesa = mesaService.buscarPorId(dto.mesaId());
+        Mesa mesa = buscarMesa(dto.mesaId());
 
         if (mesa.getEstado() == EstadoMesa.OCUPADA) {
             throw new ConflictoException("La mesa " + mesa.getNumero() + " ya está ocupada por otro pedido.");
         }
 
         mesa.ocupar();
-        Pedido pedido = new Pedido(mesa, dto.meseroId(), dto.clienteId(), dto.observaciones());
-        return pedidoRepository.save(pedido);
+        mesaRepository.save(mesa);
+
+        Pedido pedido = new Pedido(mesa.getId(), dto.meseroId(), dto.clienteId(), dto.observaciones());
+        pedido.asignarId(generadorDeIds.siguiente(COLECCION_PEDIDOS));
+        return pedidoRepository.insert(pedido);
     }
 
-    @Transactional(readOnly = true)
     public List<Pedido> listar(EstadoPedido estado) {
         if (estado != null) {
-            return pedidoRepository.findByEstadoConDetalles(estado);
+            return pedidoRepository.findByEstado(estado);
         }
-        return pedidoRepository.findAllConDetalles();
+        return pedidoRepository.findAll();
     }
 
-    @Transactional(readOnly = true)
     public Pedido buscarPorId(Long id) {
-        return pedidoRepository.findByIdConDetalles(id)
+        return pedidoRepository.findById(id)
                 .orElseThrow(() -> new NoEncontradoException("El pedido " + id + " no existe."));
+    }
+
+    /**
+     * Devuelve el número de la mesa asociada a un pedido.
+     */
+    public Integer numeroDeMesa(Long mesaId) {
+        if (mesaId == null) {
+            return null;
+        }
+        return mesaRepository.findById(mesaId)
+                .map(Mesa::getNumero)
+                .orElse(null);
+    }
+
+    /**
+     * Carga en una sola consulta los números de las mesas de una lista de pedidos.
+     */
+    public Map<Long, Integer> numerosDeMesa(List<Pedido> pedidos) {
+        Set<Long> mesaIds = pedidos.stream()
+                .map(Pedido::getMesaId)
+                .filter(id -> id != null)
+                .collect(Collectors.toSet());
+        if (mesaIds.isEmpty()) {
+            return Map.of();
+        }
+        return mesaRepository.findAllById(mesaIds).stream()
+                .collect(Collectors.toMap(Mesa::getId, Mesa::getNumero));
     }
 
     /**
@@ -100,7 +140,6 @@ public class PedidoService {
      * Solo se permite mientras el pedido sigue abierto: en cuanto sale hacia
      * la cocina, lo que diga la nota ya está en manos de quien cocina.
      */
-    @Transactional
     public Pedido cambiarNota(Long id, String observaciones) {
         Pedido pedido = buscarPorId(id);
 
@@ -119,7 +158,6 @@ public class PedidoService {
      * congelada en la línea: si mañana sube el precio de la bandeja paisa, las
      * cuentas ya tomadas siguen diciendo lo que el cliente aceptó pagar.
      */
-    @Transactional
     public Pedido agregarPlatillo(Long id, AgregarPlatilloDTO dto) {
         Pedido pedido = buscarPorId(id);
 
@@ -132,8 +170,8 @@ public class PedidoService {
             throw new ConflictoException("El platillo " + platillo.nombre() + " está agotado.");
         }
 
-        LineaPedido linea = new LineaPedido(dto.platilloId(), platillo.nombre(),
-                                            platillo.precio(), pedido);
+        LineaPedido linea = new LineaPedido(dto.platilloId(), platillo.nombre(), platillo.precio());
+        linea.asignarId(generadorDeIds.siguiente(COLECCION_LINEAS));
         pedido.agregarPlatillo(linea);
 
         return pedidoRepository.save(pedido);
@@ -142,7 +180,6 @@ public class PedidoService {
     /**
      * Quita una sola unidad/línea de platillo del pedido.
      */
-    @Transactional
     public void quitarPlatillo(Long pedidoId, Long lineaId) {
         Pedido pedido = buscarPorId(pedidoId);
 
@@ -161,7 +198,7 @@ public class PedidoService {
     /**
      * Mueve el pedido al estado siguiente de su recorrido, o lo cancela.
      *
-     * Cancelar libera la mesa.
+     * Cancelar libera la mesa y la guarda explícitamente en MongoDB.
      */
     @Transactional
     public Pedido cambiarEstado(Long id, EstadoPedido nuevoEstado) {
@@ -178,6 +215,7 @@ public class PedidoService {
 
         if (nuevoEstado == EstadoPedido.CANCELADO) {
             pedido.cancelar();
+            liberarMesa(pedido.getMesaId());
         } else {
             pedido.setEstado(nuevoEstado);
         }
@@ -206,7 +244,7 @@ public class PedidoService {
     }
 
     /**
-     * Cierra el pedido y libera su mesa. Requiere que esté pagado.
+     * Cierra el pedido y libera su mesa explícitamente en MongoDB. Requiere que esté pagado.
      */
     @Transactional
     public Pedido cerrar(Pedido pedido) {
@@ -221,6 +259,22 @@ public class PedidoService {
         }
 
         pedido.cerrar();
-        return pedidoRepository.save(pedido);
+        Pedido guardado = pedidoRepository.save(pedido);
+        liberarMesa(pedido.getMesaId());
+        return guardado;
+    }
+
+    private Mesa buscarMesa(Long mesaId) {
+        return mesaRepository.findById(mesaId)
+                .orElseThrow(() -> new NoEncontradoException("La mesa " + mesaId + " no existe."));
+    }
+
+    private void liberarMesa(Long mesaId) {
+        if (mesaId == null) {
+            return;
+        }
+        Mesa mesa = buscarMesa(mesaId);
+        mesa.liberar();
+        mesaRepository.save(mesa);
     }
 }

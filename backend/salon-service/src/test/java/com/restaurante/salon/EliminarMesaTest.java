@@ -5,6 +5,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -28,7 +29,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * mesas con las demás pruebas, y cada prueba crea la que necesita y lee su
  * identificador de la respuesta en vez de darlo por sabido.
  */
-@SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:salonmesasdb;DB_CLOSE_DELAY=-1")
+@SpringBootTest
+@Import(MongoDePrueba.class)
 class EliminarMesaTest {
 
     @Autowired

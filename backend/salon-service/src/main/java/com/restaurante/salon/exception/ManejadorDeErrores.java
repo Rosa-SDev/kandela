@@ -1,5 +1,6 @@
 package com.restaurante.salon.exception;
 
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
@@ -30,6 +31,19 @@ public class ManejadorDeErrores {
     @ResponseStatus(HttpStatus.CONFLICT)
     public Map<String, Object> conflicto(ConflictoException excepcion) {
         return Map.of("error", excepcion.getMessage());
+    }
+
+    /**
+     * MongoDB rechazó la escritura por un índice único (número de mesa o de factura).
+     *
+     * El servicio ya comprueba el número antes de guardar, así que esto solo
+     * ocurre si dos peticiones con el mismo número llegan a la vez. Se responde
+     * igual que el conflicto normal, no con un 500.
+     */
+    @ExceptionHandler(DuplicateKeyException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public Map<String, Object> claveDuplicada(DuplicateKeyException excepcion) {
+        return Map.of("error", "Ya existe un registro con ese número.");
     }
 
     /**
