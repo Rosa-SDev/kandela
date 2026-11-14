@@ -1,6 +1,6 @@
 # ADR-002: Persistencia en MongoDB para los cuatro servicios
 
-**Estado:** Propuesto
+**Estado:** Aceptado
 **Fecha:** 9-nov-2026
 **Deciden:** Rosa, Sebastián, Daniel
 
