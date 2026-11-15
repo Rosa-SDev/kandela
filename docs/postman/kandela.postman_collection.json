@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Kandela · Raíz y Sazón",
-    "description": "Todas las peticiones van al gateway (http://localhost:8080). Arranca los cinco servicios con los datos de demostración antes de ejecutar la colección.",
+    "description": "Todas las peticiones van al gateway (http://localhost:8080). Antes de ejecutar la colección, levanta MongoDB con `docker compose up -d --wait` desde la raíz y arranca los cinco servicios. Los datos se guardan en MongoDB y sobreviven a los reinicios; para volver a los datos de demostración, arranca los cuatro servicios de negocio con el perfil `demo`. La carpeta «Persistencia» comprueba que un registro de cada servicio sigue ahí después de reiniciar.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -1899,6 +1899,486 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Persistencia",
+      "description": "Comprueba que los datos sobreviven a un reinicio. Ejecuta la carpeta 1, reinicia los servicios, ejecuta la carpeta 2 y termina con la 3. Si ejecutas la colección completa de una vez, las tres carpetas pasan seguidas sin reinicio.",
+      "item": [
+        {
+          "name": "1. Antes de reiniciar: crear",
+          "description": "Crea un registro en cada servicio y guarda su id en las variables de la colección.",
+          "item": [
+            {
+              "name": "Crear usuario persistente",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base}}/api/usuarios",
+                  "host": [
+                    "{{base}}"
+                  ],
+                  "path": [
+                    "api",
+                    "usuarios"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"nombre\": \"Tomás Prieto\",\n  \"correo\": \"{{persistenciaCorreo}}\",\n  \"rol\": \"MESERO\",\n  \"password\": \"mesero123\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 201\", function () {",
+                      "    pm.response.to.have.status(201);",
+                      "});",
+                      "pm.collectionVariables.set(\"persistenciaUsuarioId\", pm.response.json().id);"
+                    ]
+                  }
+                },
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set(\"persistenciaCorreo\", \"tomas.\" + Date.now() + \"@raizysazon.co\");"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Crear platillo persistente",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base}}/api/platillos",
+                  "host": [
+                    "{{base}}"
+                  ],
+                  "path": [
+                    "api",
+                    "platillos"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"nombre\": \"{{persistenciaPlatillo}}\",\n  \"descripcion\": \"Plato creado para la prueba de persistencia\",\n  \"categoria\": \"Fuertes\",\n  \"precio\": 32000,\n  \"disponible\": true\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 201\", function () {",
+                      "    pm.response.to.have.status(201);",
+                      "});",
+                      "pm.collectionVariables.set(\"persistenciaPlatilloId\", pm.response.json().id);"
+                    ]
+                  }
+                },
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set(\"persistenciaPlatillo\", \"Tamal tolimense \" + Date.now());"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Crear cliente persistente",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base}}/api/clientes",
+                  "host": [
+                    "{{base}}"
+                  ],
+                  "path": [
+                    "api",
+                    "clientes"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"nombre\": \"Valentina Ortiz\",\n  \"documento\": \"{{persistenciaDocumento}}\",\n  \"telefono\": \"3204445566\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 201\", function () {",
+                      "    pm.response.to.have.status(201);",
+                      "});",
+                      "pm.collectionVariables.set(\"persistenciaClienteId\", pm.response.json().id);"
+                    ]
+                  }
+                },
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set(\"persistenciaDocumento\", String(Date.now()).slice(-10));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Crear mesa persistente",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base}}/api/mesas",
+                  "host": [
+                    "{{base}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mesas"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"numero\": {{persistenciaNumeroMesa}},\n  \"capacidad\": 8\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 201\", function () {",
+                      "    pm.response.to.have.status(201);",
+                      "});",
+                      "pm.collectionVariables.set(\"persistenciaMesaId\", pm.response.json().id);"
+                    ]
+                  }
+                },
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set(\"persistenciaNumeroMesa\", 900 + Math.floor(Math.random() * 99));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "2. Después de reiniciar: consultar",
+          "description": "Reinicia los cinco servicios (o solo los cuatro de negocio) y ejecuta esta carpeta: los registros siguen ahí porque viven en MongoDB, no en memoria.",
+          "item": [
+            {
+              "name": "Consultar el usuario",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base}}/api/usuarios/{{persistenciaUsuarioId}}",
+                  "host": [
+                    "{{base}}"
+                  ],
+                  "path": [
+                    "api",
+                    "usuarios",
+                    "{{persistenciaUsuarioId}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "pm.test(\"Es el mismo usuario\", function () {",
+                      "    pm.expect(String(pm.response.json().correo)).to.eql(String(pm.variables.get(\"persistenciaCorreo\")));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Consultar el platillo",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base}}/api/platillos/{{persistenciaPlatilloId}}",
+                  "host": [
+                    "{{base}}"
+                  ],
+                  "path": [
+                    "api",
+                    "platillos",
+                    "{{persistenciaPlatilloId}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "pm.test(\"Es el mismo platillo\", function () {",
+                      "    pm.expect(String(pm.response.json().nombre)).to.eql(String(pm.variables.get(\"persistenciaPlatillo\")));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Consultar el cliente",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base}}/api/clientes/{{persistenciaClienteId}}",
+                  "host": [
+                    "{{base}}"
+                  ],
+                  "path": [
+                    "api",
+                    "clientes",
+                    "{{persistenciaClienteId}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "pm.test(\"Es el mismo cliente\", function () {",
+                      "    pm.expect(String(pm.response.json().documento)).to.eql(String(pm.variables.get(\"persistenciaDocumento\")));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Consultar la mesa",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base}}/api/mesas/{{persistenciaMesaId}}",
+                  "host": [
+                    "{{base}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mesas",
+                    "{{persistenciaMesaId}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "pm.test(\"Es la misma mesa\", function () {",
+                      "    pm.expect(String(pm.response.json().numero)).to.eql(String(pm.variables.get(\"persistenciaNumeroMesa\")));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "3. Limpiar",
+          "description": "Elimina los cuatro registros de la prueba. Ejecútala al final, para que la colección no los acumule.",
+          "item": [
+            {
+              "name": "Eliminar el usuario",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base}}/api/usuarios/{{persistenciaUsuarioId}}",
+                  "host": [
+                    "{{base}}"
+                  ],
+                  "path": [
+                    "api",
+                    "usuarios",
+                    "{{persistenciaUsuarioId}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 204\", function () {",
+                      "    pm.response.to.have.status(204);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Eliminar el platillo",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base}}/api/platillos/{{persistenciaPlatilloId}}",
+                  "host": [
+                    "{{base}}"
+                  ],
+                  "path": [
+                    "api",
+                    "platillos",
+                    "{{persistenciaPlatilloId}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 204\", function () {",
+                      "    pm.response.to.have.status(204);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Eliminar el cliente",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base}}/api/clientes/{{persistenciaClienteId}}",
+                  "host": [
+                    "{{base}}"
+                  ],
+                  "path": [
+                    "api",
+                    "clientes",
+                    "{{persistenciaClienteId}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 204\", function () {",
+                      "    pm.response.to.have.status(204);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Eliminar la mesa",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base}}/api/mesas/{{persistenciaMesaId}}",
+                  "host": [
+                    "{{base}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mesas",
+                    "{{persistenciaMesaId}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 204\", function () {",
+                      "    pm.response.to.have.status(204);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
     }
   ],
   "variable": [
@@ -1952,6 +2432,38 @@
     },
     {
       "key": "pedidoPruebaId",
+      "value": ""
+    },
+    {
+      "key": "persistenciaCorreo",
+      "value": ""
+    },
+    {
+      "key": "persistenciaUsuarioId",
+      "value": ""
+    },
+    {
+      "key": "persistenciaPlatillo",
+      "value": ""
+    },
+    {
+      "key": "persistenciaPlatilloId",
+      "value": ""
+    },
+    {
+      "key": "persistenciaDocumento",
+      "value": ""
+    },
+    {
+      "key": "persistenciaClienteId",
+      "value": ""
+    },
+    {
+      "key": "persistenciaNumeroMesa",
+      "value": ""
+    },
+    {
+      "key": "persistenciaMesaId",
       "value": ""
     }
   ]
