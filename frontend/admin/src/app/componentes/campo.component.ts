@@ -37,6 +37,7 @@ let nextId = 0;
         <input 
           [type]="tipo()" 
           [id]="id" 
+          [attr.inputmode]="inputmode()"
           [attr.aria-invalid]="!!error()"
           [attr.aria-describedby]="(error() || ayuda()) ? id + '-m' : null"
           [disabled]="disabled"
@@ -55,10 +56,11 @@ let nextId = 0;
 })
 export class CampoComponent implements ControlValueAccessor {
   label = input.required<string>();
-  tipo = input<'text' | 'password' | 'email' | 'number' | 'textarea'>('text');
+  tipo = input<'text' | 'password' | 'email' | 'number' | 'tel' | 'textarea'>('text');
   req = input<boolean>(false);
   error = input<string | null>(null);
   ayuda = input<string | null>(null);
+  inputmode = input<string | null>(null);
 
   id = `f-campo-${nextId++}`;
   

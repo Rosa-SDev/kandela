@@ -64,12 +64,19 @@
   <app-drawer 
     [titulo]="editandoId() ? 'Editar platillo' : 'Nuevo platillo'" 
     (cerrar)="cerrarDrawer()">
-    
+
+    @if (resumen()) {
+      <app-aviso tono="err" glifo="!" [titulo]="resumen()!.titulo">
+        {{ resumen()!.texto }}
+      </app-aviso>
+    }
+
     <form id="formPlatillo" [formGroup]="formulario" (ngSubmit)="guardar()" style="display: grid; gap: var(--s4);">
       <app-campo 
         label="Nombre" 
         formControlName="nombre" 
-        [req]="true">
+        [req]="true"
+        [error]="errorDe('nombre')">
       </app-campo>
 
       <app-campo 
@@ -91,7 +98,8 @@
         tipo="number" 
         formControlName="precio" 
         [req]="true"
-        ayuda="En pesos, sin impoconsumo.">
+        ayuda="En pesos, sin impoconsumo."
+        [error]="errorDe('precio')">
       </app-campo>
 
       <app-campo-opciones 
@@ -111,7 +119,7 @@
     <app-boton pie-der tipo="button" (accion)="cerrarDrawer()" variante="texto">
       Cancelar
     </app-boton>
-    <app-boton pie-der tipo="submit" (accion)="guardar()" variante="calor" [disabled]="formulario.invalid">
+    <app-boton pie-der tipo="submit" (accion)="guardar()" variante="calor" [disabled]="guardando()">
       {{ editandoId() ? 'Guardar cambios' : 'Agregar a la carta' }}
     </app-boton>
 
@@ -137,14 +145,14 @@
       [ngModel]="porcentajeDescuento()" 
       (ngModelChange)="porcentajeDescuento.set($event)"
       [ayuda]="ayudaDescuento()" 
-      [error]="errorDescuento()">
+      [error]="errorDelPorcentaje()">
     </app-campo>
 
     <div pie style="display: flex; gap: 12px; justify-content: flex-end; align-items: center; width: 100%;">
       <app-boton tipo="button" (accion)="cerrarDescuento()" variante="tinta">
         Volver
       </app-boton>
-      <app-boton tipo="button" (accion)="confirmarDescuento()" variante="calor" [disabled]="!descuentoValido()">
+      <app-boton tipo="button" (accion)="confirmarDescuento()" variante="calor" [disabled]="aplicandoDescuento()">
         Aplicar descuento
       </app-boton>
     </div>
