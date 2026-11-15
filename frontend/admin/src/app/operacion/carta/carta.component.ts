@@ -14,6 +14,27 @@ import { AvisoComponent } from '../../componentes/aviso.component';
 import { PlatilloDTO, CrearPlatillo } from '@compartido/api/tipos';
 import { ErrorKandela } from '@compartido/api/errores';
 
+/**
+ * Lo que está mal en el porcentaje del descuento, o null si sirve.
+ *
+ * El campo llega como texto aunque sea de tipo number, y vacío cuando no hay
+ * nada escrito; por eso se convierte aquí y no se confía en el tipo.
+ */
+function problemaDelPorcentaje(valor: unknown): string | null {
+  const texto = String(valor ?? '').trim();
+  if (!texto) {
+    return 'El porcentaje es obligatorio.';
+  }
+  const numero = Number(texto);
+  if (isNaN(numero) || numero <= 0) {
+    return 'El porcentaje debe ser mayor que cero.';
+  }
+  if (numero > 100) {
+    return 'El porcentaje no puede ser mayor que 100.';
+  }
+  return null;
+}
+
 @Component({
   selector: 'app-carta',
   standalone: true,
@@ -105,6 +126,8 @@ export class CartaComponent implements OnInit {
   platilloDescuento = signal<PlatilloDTO | null>(null);
   porcentajeDescuento = signal<number | null>(null);
   errorDescuento = signal<string | null>(null);
+  descuentoIntentado = signal(false);
+  aplicandoDescuento = signal(false);
 
   descuentoCalculado = computed(() => {
     const p = this.platilloDescuento();
@@ -123,9 +146,17 @@ export class CartaComponent implements OnInit {
     return `Precio actual: $${p.precio.toLocaleString('es-CO')}.`;
   });
 
-  descuentoValido = computed(() => {
-    const pct = this.porcentajeDescuento();
-    return pct !== null && !isNaN(pct) && pct > 0 && pct <= 100;
+  descuentoValido = computed(() => problemaDelPorcentaje(this.porcentajeDescuento()) === null);
+
+  /** Lo que dijo el servidor, o el problema del porcentaje después de pulsar «Aplicar». */
+  errorDelPorcentaje = computed(() => {
+    if (this.errorDescuento()) {
+      return this.errorDescuento();
+    }
+    if (!this.descuentoIntentado()) {
+      return null;
+    }
+    return problemaDelPorcentaje(this.porcentajeDescuento());
   });
 
   // Diálogo de Eliminar
@@ -281,6 +312,7 @@ export class CartaComponent implements OnInit {
     this.platilloDescuento.set(platillo);
     this.porcentajeDescuento.set(null);
     this.errorDescuento.set(null);
+    this.descuentoIntentado.set(false);
     this.dialogoDescuento.set(true);
   }
 
@@ -289,15 +321,24 @@ export class CartaComponent implements OnInit {
     this.platilloDescuento.set(null);
     this.porcentajeDescuento.set(null);
     this.errorDescuento.set(null);
+    this.descuentoIntentado.set(false);
   }
 
   confirmarDescuento() {
     const p = this.platilloDescuento();
     const pct = this.porcentajeDescuento();
-    if (!p || !this.descuentoValido() || pct === null) return;
+    if (!p || this.aplicandoDescuento()) return;
 
+    this.errorDescuento.set(null);
+    if (!this.descuentoValido()) {
+      this.descuentoIntentado.set(true);
+      return;
+    }
+
+    this.aplicandoDescuento.set(true);
     this.cartaSrv.aplicarDescuento(p.id, Number(pct)).subscribe({
       next: (actualizado) => {
+        this.aplicandoDescuento.set(false);
         this.cerrarDescuento();
         this.avisoOk.set({
           titulo: 'Descuento aplicado',
@@ -306,6 +347,7 @@ export class CartaComponent implements OnInit {
         this.cargarPlatillos();
       },
       error: (err: ErrorKandela) => {
+        this.aplicandoDescuento.set(false);
         this.errorDescuento.set(err.titulo || 'No se pudo aplicar el descuento.');
       }
     });
