@@ -88,6 +88,7 @@ function noVacio(control: AbstractControl): ValidationErrors | null {
 
           <app-campo
             label="Documento"
+            inputmode="numeric"
             formControlName="documento"
             [req]="true"
             [error]="errorDe('documento')">
@@ -95,6 +96,7 @@ function noVacio(control: AbstractControl): ValidationErrors | null {
 
           <app-campo
             label="Teléfono"
+            tipo="tel"
             formControlName="telefono"
             ayuda="Opcional.">
           </app-campo>
