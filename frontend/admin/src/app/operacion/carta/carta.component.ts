@@ -79,6 +79,8 @@ export class CartaComponent implements OnInit {
   // Drawer (Crear / Editar)
   drawerAbierto = signal(false);
   editandoId = signal<number | null>(null);
+  guardando = signal(false);
+  resumen = signal<{ titulo: string; texto: string } | null>(null);
 
   formulario = this.fb.nonNullable.group({
     nombre: ['', Validators.required],
@@ -87,6 +89,16 @@ export class CartaComponent implements OnInit {
     precio: [0, [Validators.required, Validators.min(1)]],
     disponible: ['Disponible', Validators.required]
   });
+
+  private readonly mensajes: Record<string, Record<string, string>> = {
+    nombre: {
+      required: 'El nombre del platillo es obligatorio.'
+    },
+    precio: {
+      required: 'El precio es obligatorio.',
+      min: 'El precio debe ser mayor que cero.'
+    }
+  };
 
   // Diálogo de Descuento
   dialogoDescuento = signal(false);
@@ -161,18 +173,22 @@ export class CartaComponent implements OnInit {
       precio: 0,
       disponible: 'Disponible'
     });
+    this.resumen.set(null);
     this.drawerAbierto.set(true);
   }
 
+  // reset y no patchValue: así un intento fallido anterior no deja los
+  // campos marcados con error al abrir otro platillo.
   abrirEditar(platillo: PlatilloDTO) {
     this.editandoId.set(platillo.id);
-    this.formulario.patchValue({
+    this.formulario.reset({
       nombre: platillo.nombre,
       descripcion: platillo.descripcion || '',
       categoria: platillo.categoria,
       precio: platillo.precio,
       disponible: platillo.disponible ? 'Disponible' : 'Agotado'
     });
+    this.resumen.set(null);
     this.drawerAbierto.set(true);
   }
 
@@ -181,8 +197,33 @@ export class CartaComponent implements OnInit {
     this.editandoId.set(null);
   }
 
+  /** El mensaje de un campo, solo después de que se intentó guardar o se salió de él. */
+  errorDe(campo: 'nombre' | 'precio'): string | null {
+    const control = this.formulario.controls[campo];
+    if (!control.touched || !control.invalid) {
+      return null;
+    }
+    const clave = Object.keys(control.errors ?? {})[0];
+    return this.mensajes[campo][clave] ?? null;
+  }
+
   guardar() {
-    if (this.formulario.invalid) return;
+    if (this.guardando()) {
+      return;
+    }
+
+    if (this.formulario.invalid) {
+      this.formulario.markAllAsTouched();
+      const n = Object.values(this.formulario.controls).filter((c) => c.invalid).length;
+      this.resumen.set({
+        titulo: `Revise ${n} campo${n === 1 ? '' : 's'}`,
+        texto: 'No se guardó nada todavía.'
+      });
+      return;
+    }
+
+    this.guardando.set(true);
+    this.resumen.set(null);
 
     const val = this.formulario.getRawValue();
     const datos: CrearPlatillo = {
@@ -197,6 +238,7 @@ export class CartaComponent implements OnInit {
     if (id) {
       this.cartaSrv.actualizar(id, datos).subscribe({
         next: (res) => {
+          this.guardando.set(false);
           this.cerrarDrawer();
           this.avisoOk.set({
             titulo: 'Cambios guardados',
@@ -205,6 +247,7 @@ export class CartaComponent implements OnInit {
           this.cargarPlatillos();
         },
         error: (err: ErrorKandela) => {
+          this.guardando.set(false);
           this.errorSrv.set({
             titulo: err.titulo || 'No se pudo actualizar el platillo.',
             texto: err.texto || ''
@@ -214,6 +257,7 @@ export class CartaComponent implements OnInit {
     } else {
       this.cartaSrv.crear(datos).subscribe({
         next: (res) => {
+          this.guardando.set(false);
           this.cerrarDrawer();
           this.avisoOk.set({
             titulo: 'Platillo guardado',
@@ -222,6 +266,7 @@ export class CartaComponent implements OnInit {
           this.cargarPlatillos();
         },
         error: (err: ErrorKandela) => {
+          this.guardando.set(false);
           this.errorSrv.set({
             titulo: err.titulo || 'No se pudo crear el platillo.',
             texto: err.texto || ''
