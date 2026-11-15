@@ -102,6 +102,7 @@ export class CartaComponent implements OnInit {
   editandoId = signal<number | null>(null);
   guardando = signal(false);
   resumen = signal<{ titulo: string; texto: string } | null>(null);
+  errorNombreSrv = signal<string | null>(null);
 
   formulario = this.fb.nonNullable.group({
     nombre: ['', Validators.required],
@@ -205,6 +206,7 @@ export class CartaComponent implements OnInit {
       disponible: 'Disponible'
     });
     this.resumen.set(null);
+    this.errorNombreSrv.set(null);
     this.drawerAbierto.set(true);
   }
 
@@ -220,6 +222,7 @@ export class CartaComponent implements OnInit {
       disponible: platillo.disponible ? 'Disponible' : 'Agotado'
     });
     this.resumen.set(null);
+    this.errorNombreSrv.set(null);
     this.drawerAbierto.set(true);
   }
 
@@ -230,6 +233,9 @@ export class CartaComponent implements OnInit {
 
   /** El mensaje de un campo, solo después de que se intentó guardar o se salió de él. */
   errorDe(campo: 'nombre' | 'precio'): string | null {
+    if (campo === 'nombre' && this.errorNombreSrv()) {
+      return this.errorNombreSrv();
+    }
     const control = this.formulario.controls[campo];
     if (!control.touched || !control.invalid) {
       return null;
@@ -255,6 +261,7 @@ export class CartaComponent implements OnInit {
 
     this.guardando.set(true);
     this.resumen.set(null);
+    this.errorNombreSrv.set(null);
 
     const val = this.formulario.getRawValue();
     const datos: CrearPlatillo = {
@@ -277,13 +284,7 @@ export class CartaComponent implements OnInit {
           });
           this.cargarPlatillos();
         },
-        error: (err: ErrorKandela) => {
-          this.guardando.set(false);
-          this.errorSrv.set({
-            titulo: err.titulo || 'No se pudo actualizar el platillo.',
-            texto: err.texto || ''
-          });
-        }
+        error: (err: ErrorKandela) => this.fallo(err, 'No se pudo actualizar el platillo.')
       });
     } else {
       this.cartaSrv.crear(datos).subscribe({
@@ -296,14 +297,24 @@ export class CartaComponent implements OnInit {
           });
           this.cargarPlatillos();
         },
-        error: (err: ErrorKandela) => {
-          this.guardando.set(false);
-          this.errorSrv.set({
-            titulo: err.titulo || 'No se pudo crear el platillo.',
-            texto: err.texto || ''
-          });
-        }
+        error: (err: ErrorKandela) => this.fallo(err, 'No se pudo crear el platillo.')
       });
+    }
+  }
+
+  /**
+   * Un error del servidor al guardar se muestra dentro del drawer, que es donde
+   * está quien lo tiene que corregir; el aviso de la página queda para los éxitos.
+   */
+  private fallo(err: ErrorKandela, porDefecto: string) {
+    this.guardando.set(false);
+    // El único conflicto al crear o renombrar es que el nombre ya esté tomado,
+    // así que además del aviso se marca el campo que hay que cambiar.
+    if (err.status === 409) {
+      this.errorNombreSrv.set('Revise este campo.');
+      this.resumen.set({ titulo: err.titulo || porDefecto, texto: 'Elija otro nombre.' });
+    } else {
+      this.resumen.set({ titulo: err.titulo || porDefecto, texto: 'No se guardó nada todavía.' });
     }
   }
 
