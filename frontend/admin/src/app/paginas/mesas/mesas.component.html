@@ -54,6 +54,7 @@
     <form [formGroup]="formulario" (ngSubmit)="guardar()" style="display: grid; gap: var(--s4)">
       <app-campo
         label="Número de mesa"
+        tipo="number"
         formControlName="numero"
         [req]="true"
         [error]="errorDe('numero')">
@@ -61,6 +62,7 @@
 
       <app-campo
         label="Capacidad (personas)"
+        tipo="number"
         formControlName="capacidad"
         [req]="true"
         ayuda="El plano del salón dibuja la mesa según su capacidad."
