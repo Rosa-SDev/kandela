@@ -64,6 +64,21 @@
    color: var(--texto-2)
 }
 
+/* ---- Reseña del cliente (pública, desde el QR) ---- */
+/* Usa la misma columna que el inicio de sesión; el comentario necesita más alto. */
+.resena .f-titulo {
+   --titulo: 36px
+}
+
+.resena__texto {
+   margin: 0;
+   color: var(--texto-2)
+}
+
+.resena .f-campo textarea {
+   min-height: 168px
+}
+
 /* ---- Salón · Mesero ---- */
 /* Mínimo de texto del salón: 14 px, aunque la pieza sea de otra capa. */
 .sh-salon .f-estado,
