@@ -23,6 +23,11 @@ spring:
 servicios:
   salon:
     url: http://localhost:8084
+  # SentiTriage-ES: el agente que clasifica las reseñas (servicio aparte, en Python).
+  # La primera respuesta tarda unos segundos porque el agente carga su modelo.
+  sentitriage:
+    url: http://localhost:8000
+    espera-maxima: 20s
 
 # Swagger UI: http://localhost:8083/swagger-ui.html
 springdoc:
