@@ -23,7 +23,7 @@ spring:
             - id: clientes
               uri: http://localhost:8083
               predicates:
-                - Path=/api/clientes/**,/api/reservas/**
+                - Path=/api/clientes/**,/api/reservas/**,/api/resenas/**
 
             - id: salon
               uri: http://localhost:8084
