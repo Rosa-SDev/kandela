@@ -177,3 +177,35 @@ export interface CrearFactura {
   metodoPago: MetodoPago;
   monto: number;
 }
+
+/**
+ * Decisión del agente SentiTriage-ES sobre una reseña. Son identificadores de
+ * su API: ABSTAIN (requiere una persona), QUEUE (queja), PASS (se almacena).
+ */
+export type AccionDelAgente = 'ABSTAIN' | 'QUEUE' | 'PASS';
+
+export interface ResenaDTO {
+  id: number;
+  texto: string;
+  fecha: string;
+  mesaId: number | null;
+  pedidoId: number | null;
+  accion: AccionDelAgente;
+  etiqueta: 'negative' | 'neutral' | 'positive' | null;
+  confianza: number | null;
+  umbral: number | null;
+  modelo: string | null;
+  /** El agente no respondió: la reseña quedó como ABSTAIN para que la lea una persona. */
+  sinClasificar: boolean;
+  revisada: boolean;
+}
+
+export interface CrearResena {
+  texto: string;
+  mesaId?: number;
+  pedidoId?: number;
+}
+
+export interface MarcarRevisada {
+  revisada: boolean;
+}

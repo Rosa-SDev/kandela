@@ -6,6 +6,7 @@ import { SesionProveedor, useSesion } from './nucleo/sesion';
 
 import { CocinaShell } from './cocina/CocinaShell';
 import { CajaShell } from './caja/CajaShell';
+import { ResenaCliente } from './resena/ResenaCliente';
 
 function Inicio() {
   const { usuario } = useSesion();
@@ -21,6 +22,8 @@ function App() {
       <Routes>
         <Route path="/" element={<Inicio />} />
         <Route path="/login" element={<Login />} />
+        {/* Pública, sin sesión: la abre el cliente desde el QR de su mesa o de su factura. */}
+        <Route path="/resena" element={<ResenaCliente />} />
         <Route
           path="/salon/*"
           element={

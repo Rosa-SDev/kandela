@@ -1201,6 +1201,226 @@
       ]
     },
     {
+      "name": "Reseñas",
+      "description": "Comentarios de los clientes clasificados por el agente SentiTriage-ES. Para ver la clasificación real, arranca el agente en el puerto 8000 (repositorio sentitriage-es: uvicorn service.app:app --port 8000).",
+      "item": [
+        {
+          "name": "Registrar reseña (queja)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"texto\": \"Pésimo servicio. Más de una hora esperando y la comida llegó fría.\",\n  \"mesaId\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base}}/api/resenas",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "api",
+                "resenas"
+              ]
+            },
+            "description": "La deja un cliente desde el QR de su mesa. clientes-service le pide la decisión al agente SentiTriage-ES (http://localhost:8000). Con el agente encendido, una queja clara queda en QUEUE; si el agente está apagado, la reseña se guarda igual como ABSTAIN con sinClasificar en true."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test(\"Trae la decisión del agente\", function () {",
+                  "    const r = pm.response.json();",
+                  "    pm.expect(['ABSTAIN', 'QUEUE', 'PASS']).to.include(r.accion);",
+                  "    pm.expect(r.revisada).to.eql(false);",
+                  "});",
+                  "pm.collectionVariables.set(\"resenaId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Registrar reseña sin texto",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"texto\": \"   \"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base}}/api/resenas",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "api",
+                "resenas"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 400 con el campo texto\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "    pm.expect(pm.response.json().campos.texto).to.eql(\"Escribe tu comentario\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar quejas por revisar",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base}}/api/resenas?accion=QUEUE&revisada=false",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "api",
+                "resenas"
+              ],
+              "query": [
+                {
+                  "key": "accion",
+                  "value": "QUEUE"
+                },
+                {
+                  "key": "revisada",
+                  "value": "false"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar reseña",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base}}/api/resenas/{{resenaId}}",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "api",
+                "resenas",
+                "{{resenaId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Marcar reseña como revisada",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"revisada\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base}}/api/resenas/{{resenaId}}/revisada",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "api",
+                "resenas",
+                "{{resenaId}}",
+                "revisada"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Queda revisada\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().revisada).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Salón",
       "item": [
         {
@@ -2464,6 +2684,10 @@
     },
     {
       "key": "persistenciaMesaId",
+      "value": ""
+    },
+    {
+      "key": "resenaId",
       "value": ""
     }
   ]

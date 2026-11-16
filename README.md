@@ -7,6 +7,9 @@ backend:
 - **Kandela POS**, en React: el salón del mesero y la caja.
 - **Kandela KDS**, en React: la pantalla de cocina.
 
+Además, los clientes dejan su comentario desde un QR, y el agente **SentiTriage-ES**
+lo clasifica (ver [Reseñas de los clientes](#reseñas-de-los-clientes)).
+
 El restaurante de ejemplo que usa el sistema se llama **Raíz y Sazón**.
 
 ## Arquitectura
@@ -73,6 +76,47 @@ Usuarios de prueba (contraseña de todos: `kandela123`):
 | Mesero | `carlos.rojas@raizysazon.co` | Kandela POS · Salón |
 | Cajera | `diana.rios@raizysazon.co` | Kandela POS · Caja |
 | Cocinero | `jorge.castano@raizysazon.co` | Kandela KDS |
+
+## Reseñas de los clientes
+
+El cliente escanea el QR de su mesa (o de su factura), escribe cómo le fue y lo envía,
+sin iniciar sesión. Kandela le pide la decisión a
+[SentiTriage-ES](https://github.com/Rosa-SDev/sentitriage-es), un agente aparte que
+clasifica el sentimiento de comentarios en español y **se abstiene cuando no está
+seguro**. La administradora ve el resultado en **Kandela Admin → Reseñas**:
+
+| Decisión del agente | En Admin | Qué hace la administradora |
+|---|---|---|
+| `ABSTAIN` | ◆ Requiere una persona | La lee y decide |
+| `QUEUE` | ! Queja | La atiende |
+| `PASS` | ✓ Almacenada | Nada: queda guardada |
+
+```
+Cliente (celular) ── /resena?mesa=4 ──▶ api-gateway ──▶ clientes-service ──POST /classify──▶ SentiTriage-ES :8000
+                                                              │  guarda la reseña con la decisión embebida
+                                                              ▼
+                                            clientesdb.resenas ◀── Kandela Admin · Reseñas
+```
+
+- **El agente es un servicio más.** `clientes-service` lo llama por HTTP, como llama al
+  salón; su dirección está en `servicios.sentitriage.url` (`application.yml`). Kandela no
+  sabe cómo decide, y el agente no sabe nada del restaurante.
+- **Nada se pierde.** Si el agente está apagado o falla, la reseña se guarda igual como
+  `ABSTAIN` y aparece «Sin clasificar» en Admin, con la opción «Clasificar de nuevo».
+- **El cliente no ve la clasificación**: solo se le agradece.
+
+Para ver la clasificación real, arranca el agente antes de enviar reseñas (desde su
+propio repositorio):
+
+```powershell
+cd sentitriage-es
+.\.venv\Scripts\Activate.ps1
+uvicorn service.app:app --port 8000      # http://localhost:8000/health carga el modelo
+```
+
+Para abrir el formulario desde un celular, el celular debe estar en la misma red Wi-Fi
+que el computador: arranca la app de operación con `npm run dev -- --host` y usa la IP
+local del computador en el QR, por ejemplo `http://192.168.1.20:5173/resena?mesa=4`.
 
 ## MongoDB
 
