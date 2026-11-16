@@ -58,6 +58,7 @@ export class AdminShellComponent {
     { texto: 'Operación', ruta: '/operacion' },
     { texto: 'Carta', ruta: '/carta' },
     { texto: 'Clientes', ruta: '/clientes' },
+    { texto: 'Reseñas', ruta: '/resenas' },
     { texto: 'Facturas', ruta: '/facturas' },
     { texto: 'Usuarios', ruta: '/usuarios' }
   ];
