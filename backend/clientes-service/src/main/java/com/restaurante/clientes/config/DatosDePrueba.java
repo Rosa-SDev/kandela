@@ -14,6 +14,7 @@ import com.restaurante.clientes.dto.ClienteDTO;
 import com.restaurante.clientes.dto.CrearClienteDTO;
 import com.restaurante.clientes.model.Reserva;
 import com.restaurante.clientes.repository.ClienteRepository;
+import com.restaurante.clientes.repository.ResenaRepository;
 import com.restaurante.clientes.repository.ReservaRepository;
 import com.restaurante.clientes.service.ClienteService;
 import com.restaurante.clientes.service.ReservaService;
@@ -44,16 +45,18 @@ public class DatosDePrueba implements CommandLineRunner {
 
     private final ClienteRepository clienteRepository;
     private final ReservaRepository reservaRepository;
+    private final ResenaRepository resenaRepository;
     private final ClienteService clienteService;
     private final ReservaService reservaService;
     private final GeneradorDeIds generadorDeIds;
     private final Environment entorno;
 
     public DatosDePrueba(ClienteRepository clienteRepository, ReservaRepository reservaRepository,
-                         ClienteService clienteService, ReservaService reservaService,
+                         ResenaRepository resenaRepository, ClienteService clienteService, ReservaService reservaService,
                          GeneradorDeIds generadorDeIds, Environment entorno) {
         this.clienteRepository = clienteRepository;
         this.reservaRepository = reservaRepository;
+        this.resenaRepository = resenaRepository;
         this.clienteService = clienteService;
         this.reservaService = reservaService;
         this.generadorDeIds = generadorDeIds;
@@ -61,8 +64,10 @@ public class DatosDePrueba implements CommandLineRunner {
     }
 
     /**
-     * Con el perfil demo: vacía "reservas", "clientes" y "contadores" antes de
-     * cargar. Al vaciar los contadores, los ids vuelven a empezar en 1.
+     * Con el perfil demo: vacía "reservas", "resenas", "clientes" y "contadores"
+     * antes de cargar. Al vaciar los contadores, los ids vuelven a empezar en 1, así
+     * que las reseñas también se vacían: si no, la siguiente reseña recibiría un id
+     * que ya existe. No hay reseñas de demostración: llegan desde el formulario.
      *
      * Se vacían las colecciones en lugar de borrar la base: borrarla eliminaría
      * también el índice único del documento, que Spring crea al arrancar, antes
@@ -72,9 +77,10 @@ public class DatosDePrueba implements CommandLineRunner {
     public void run(String... args) {
         if (entorno.matchesProfiles(PERFIL_DEMO)) {
             reservaRepository.deleteAll();
+            resenaRepository.deleteAll();
             clienteRepository.deleteAll();
             generadorDeIds.reiniciar();
-            LOG.info("Perfil demo: clientes y reservas vaciados, contadores reiniciados.");
+            LOG.info("Perfil demo: clientes, reservas y reseñas vaciados, contadores reiniciados.");
         } else if (clienteRepository.count() > 0) {
             return;
         }
