@@ -1,4 +1,4 @@
-# restaurante-microservicios
+# Kandela · backend
 
 Sistema de Gestión de Restaurante expuesto como microservicios REST con Spring Boot.
 El proyecto es un repositorio Maven multi-módulo: un `pom.xml` padre que coordina
