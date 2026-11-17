@@ -22,7 +22,7 @@ cada ruta al servicio que le corresponde.
 |---|---|
 | `/api/usuarios/**`, `/api/auth/**` | `usuarios-service` |
 | `/api/platillos/**` | `carta-service` |
-| `/api/clientes/**`, `/api/reservas/**` | `clientes-service` |
+| `/api/clientes/**`, `/api/reservas/**`, `/api/resenas/**` | `clientes-service` |
 | `/api/mesas/**`, `/api/pedidos/**`, `/api/facturas/**` | `salon-service` |
 
 Cada servicio fija su puerto y su base de datos en su propio
