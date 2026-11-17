@@ -10,6 +10,18 @@ backend:
 Además, los clientes dejan su comentario desde un QR, y el agente **SentiTriage-ES**
 lo clasifica (ver [Reseñas de los clientes](#reseñas-de-los-clientes)).
 
+## Demo en línea
+
+| Módulo | Dirección |
+|---|---|
+| Kandela Admin (Angular) | https://kandela-admin-app.web.app |
+| Kandela POS, KDS y QR (React) | https://kandela-pos-app.web.app |
+| API Gateway | https://api-gateway-djayyuspba-uc.a.run.app |
+| Swagger de usuarios-service | https://usuarios-service-djayyuspba-uc.a.run.app/swagger-ui.html |
+| Swagger de carta-service | https://carta-service-djayyuspba-uc.a.run.app/swagger-ui.html |
+| Swagger de clientes-service | https://clientes-service-djayyuspba-uc.a.run.app/swagger-ui.html |
+| Swagger de salon-service | https://salon-service-djayyuspba-uc.a.run.app/swagger-ui.html |
+
 El restaurante de ejemplo que usa el sistema se llama **Raíz y Sazón**.
 
 ## Arquitectura
