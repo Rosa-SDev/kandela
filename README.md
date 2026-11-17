@@ -197,8 +197,7 @@ Rosa Peña**.
 
 ## Equipo
 
-Rosa Peña, Sebastián Gallego y Daniel Guzmán. Proyecto del segundo corte de Diseño de
-Soluciones.
+Rosa Peña, Sebastián Gallego y Daniel Guzmán. Proyecto final de Diseño de Soluciones.
 
 ## Limitaciones conocidas
 
