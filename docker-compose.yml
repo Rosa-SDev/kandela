@@ -1,0 +1,48 @@
+# MongoDB para el backend de Kandela.
+#
+# Un solo nodo configurado como replica set (rs0): las transacciones de varios
+# documentos solo funcionan en un replica set, aunque tenga un unico miembro.
+#
+# Escucha en el 27018, dentro y fuera del contenedor, para no confundirse con un
+# MongoDB instalado en el equipo, que suele ocupar el 27017.
+#
+# Uso, desde la raiz del repositorio:
+#   docker compose up -d --wait     levanta MongoDB y espera a que este listo
+#   docker compose down             lo detiene; los datos se conservan
+#   docker compose down -v          lo detiene y borra los datos
+
+name: kandela
+
+services:
+  mongodb:
+    image: mongo:8
+    container_name: kandela-mongodb
+    command: ["--replSet", "rs0", "--port", "27018", "--bind_ip_all"]
+    ports:
+      - "27018:27018"
+    volumes:
+      - mongodb-datos:/data/db
+    # El healthcheck tambien inicia el replica set la primera vez.
+    # El miembro se anuncia como localhost:27018 para que el driver de los
+    # servicios, que corre fuera del contenedor, encuentre el mismo nodo.
+    # Solo se da por sano cuando el nodo ya es primario y acepta escrituras.
+    healthcheck:
+      test:
+        - CMD
+        - mongosh
+        - --port
+        - "27018"
+        - --quiet
+        - --eval
+        - >-
+          try { rs.status() }
+          catch (e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27018' }] }) }
+          quit(db.hello().isWritablePrimary ? 0 : 1)
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+      start_interval: 2s
+
+volumes:
+  mongodb-datos:

@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Kandela · Raíz y Sazón",
-    "description": "Todas las peticiones van al gateway (http://localhost:8080). Arranca los cinco servicios con los datos de demostración antes de ejecutar la colección.",
+    "description": "Todas las peticiones van al gateway (http://localhost:8080). Antes de ejecutar la colección, levanta MongoDB con `docker compose up -d --wait` desde la raíz y arranca los cinco servicios. Los datos se guardan en MongoDB y sobreviven a los reinicios; para volver a los datos de demostración, arranca los cuatro servicios de negocio con el perfil `demo`. La carpeta «Persistencia» comprueba que un registro de cada servicio sigue ahí después de reiniciar.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -1201,6 +1201,226 @@
       ]
     },
     {
+      "name": "Reseñas",
+      "description": "Comentarios de los clientes clasificados por el agente SentiTriage-ES. Para ver la clasificación real, arranca el agente en el puerto 8000 (repositorio sentitriage-es: uvicorn service.app:app --port 8000).",
+      "item": [
+        {
+          "name": "Registrar reseña (queja)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"texto\": \"Pésimo servicio. Más de una hora esperando y la comida llegó fría.\",\n  \"mesaId\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base}}/api/resenas",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "api",
+                "resenas"
+              ]
+            },
+            "description": "La deja un cliente desde el QR de su mesa. clientes-service le pide la decisión al agente SentiTriage-ES (http://localhost:8000). Con el agente encendido, una queja clara queda en QUEUE; si el agente está apagado, la reseña se guarda igual como ABSTAIN con sinClasificar en true."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test(\"Trae la decisión del agente\", function () {",
+                  "    const r = pm.response.json();",
+                  "    pm.expect(['ABSTAIN', 'QUEUE', 'PASS']).to.include(r.accion);",
+                  "    pm.expect(r.revisada).to.eql(false);",
+                  "});",
+                  "pm.collectionVariables.set(\"resenaId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Registrar reseña sin texto",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"texto\": \"   \"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base}}/api/resenas",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "api",
+                "resenas"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 400 con el campo texto\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "    pm.expect(pm.response.json().campos.texto).to.eql(\"Escribe tu comentario\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar quejas por revisar",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base}}/api/resenas?accion=QUEUE&revisada=false",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "api",
+                "resenas"
+              ],
+              "query": [
+                {
+                  "key": "accion",
+                  "value": "QUEUE"
+                },
+                {
+                  "key": "revisada",
+                  "value": "false"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar reseña",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base}}/api/resenas/{{resenaId}}",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "api",
+                "resenas",
+                "{{resenaId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Marcar reseña como revisada",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"revisada\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base}}/api/resenas/{{resenaId}}/revisada",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "api",
+                "resenas",
+                "{{resenaId}}",
+                "revisada"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Queda revisada\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().revisada).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Salón",
       "item": [
         {
@@ -1899,6 +2119,486 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Persistencia",
+      "description": "Comprueba que los datos sobreviven a un reinicio. Ejecuta la carpeta 1, reinicia los servicios, ejecuta la carpeta 2 y termina con la 3. Si ejecutas la colección completa de una vez, las tres carpetas pasan seguidas sin reinicio.",
+      "item": [
+        {
+          "name": "1. Antes de reiniciar: crear",
+          "description": "Crea un registro en cada servicio y guarda su id en las variables de la colección.",
+          "item": [
+            {
+              "name": "Crear usuario persistente",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base}}/api/usuarios",
+                  "host": [
+                    "{{base}}"
+                  ],
+                  "path": [
+                    "api",
+                    "usuarios"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"nombre\": \"Tomás Prieto\",\n  \"correo\": \"{{persistenciaCorreo}}\",\n  \"rol\": \"MESERO\",\n  \"password\": \"mesero123\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 201\", function () {",
+                      "    pm.response.to.have.status(201);",
+                      "});",
+                      "pm.collectionVariables.set(\"persistenciaUsuarioId\", pm.response.json().id);"
+                    ]
+                  }
+                },
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set(\"persistenciaCorreo\", \"tomas.\" + Date.now() + \"@raizysazon.co\");"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Crear platillo persistente",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base}}/api/platillos",
+                  "host": [
+                    "{{base}}"
+                  ],
+                  "path": [
+                    "api",
+                    "platillos"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"nombre\": \"{{persistenciaPlatillo}}\",\n  \"descripcion\": \"Plato creado para la prueba de persistencia\",\n  \"categoria\": \"Fuertes\",\n  \"precio\": 32000,\n  \"disponible\": true\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 201\", function () {",
+                      "    pm.response.to.have.status(201);",
+                      "});",
+                      "pm.collectionVariables.set(\"persistenciaPlatilloId\", pm.response.json().id);"
+                    ]
+                  }
+                },
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set(\"persistenciaPlatillo\", \"Tamal tolimense \" + Date.now());"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Crear cliente persistente",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base}}/api/clientes",
+                  "host": [
+                    "{{base}}"
+                  ],
+                  "path": [
+                    "api",
+                    "clientes"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"nombre\": \"Valentina Ortiz\",\n  \"documento\": \"{{persistenciaDocumento}}\",\n  \"telefono\": \"3204445566\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 201\", function () {",
+                      "    pm.response.to.have.status(201);",
+                      "});",
+                      "pm.collectionVariables.set(\"persistenciaClienteId\", pm.response.json().id);"
+                    ]
+                  }
+                },
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set(\"persistenciaDocumento\", String(Date.now()).slice(-10));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Crear mesa persistente",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base}}/api/mesas",
+                  "host": [
+                    "{{base}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mesas"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"numero\": {{persistenciaNumeroMesa}},\n  \"capacidad\": 8\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 201\", function () {",
+                      "    pm.response.to.have.status(201);",
+                      "});",
+                      "pm.collectionVariables.set(\"persistenciaMesaId\", pm.response.json().id);"
+                    ]
+                  }
+                },
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set(\"persistenciaNumeroMesa\", 900 + Math.floor(Math.random() * 99));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "2. Después de reiniciar: consultar",
+          "description": "Reinicia los cinco servicios (o solo los cuatro de negocio) y ejecuta esta carpeta: los registros siguen ahí porque viven en MongoDB, no en memoria.",
+          "item": [
+            {
+              "name": "Consultar el usuario",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base}}/api/usuarios/{{persistenciaUsuarioId}}",
+                  "host": [
+                    "{{base}}"
+                  ],
+                  "path": [
+                    "api",
+                    "usuarios",
+                    "{{persistenciaUsuarioId}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "pm.test(\"Es el mismo usuario\", function () {",
+                      "    pm.expect(String(pm.response.json().correo)).to.eql(String(pm.variables.get(\"persistenciaCorreo\")));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Consultar el platillo",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base}}/api/platillos/{{persistenciaPlatilloId}}",
+                  "host": [
+                    "{{base}}"
+                  ],
+                  "path": [
+                    "api",
+                    "platillos",
+                    "{{persistenciaPlatilloId}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "pm.test(\"Es el mismo platillo\", function () {",
+                      "    pm.expect(String(pm.response.json().nombre)).to.eql(String(pm.variables.get(\"persistenciaPlatillo\")));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Consultar el cliente",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base}}/api/clientes/{{persistenciaClienteId}}",
+                  "host": [
+                    "{{base}}"
+                  ],
+                  "path": [
+                    "api",
+                    "clientes",
+                    "{{persistenciaClienteId}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "pm.test(\"Es el mismo cliente\", function () {",
+                      "    pm.expect(String(pm.response.json().documento)).to.eql(String(pm.variables.get(\"persistenciaDocumento\")));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Consultar la mesa",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base}}/api/mesas/{{persistenciaMesaId}}",
+                  "host": [
+                    "{{base}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mesas",
+                    "{{persistenciaMesaId}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "pm.test(\"Es la misma mesa\", function () {",
+                      "    pm.expect(String(pm.response.json().numero)).to.eql(String(pm.variables.get(\"persistenciaNumeroMesa\")));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "3. Limpiar",
+          "description": "Elimina los cuatro registros de la prueba. Ejecútala al final, para que la colección no los acumule.",
+          "item": [
+            {
+              "name": "Eliminar el usuario",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base}}/api/usuarios/{{persistenciaUsuarioId}}",
+                  "host": [
+                    "{{base}}"
+                  ],
+                  "path": [
+                    "api",
+                    "usuarios",
+                    "{{persistenciaUsuarioId}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 204\", function () {",
+                      "    pm.response.to.have.status(204);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Eliminar el platillo",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base}}/api/platillos/{{persistenciaPlatilloId}}",
+                  "host": [
+                    "{{base}}"
+                  ],
+                  "path": [
+                    "api",
+                    "platillos",
+                    "{{persistenciaPlatilloId}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 204\", function () {",
+                      "    pm.response.to.have.status(204);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Eliminar el cliente",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base}}/api/clientes/{{persistenciaClienteId}}",
+                  "host": [
+                    "{{base}}"
+                  ],
+                  "path": [
+                    "api",
+                    "clientes",
+                    "{{persistenciaClienteId}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 204\", function () {",
+                      "    pm.response.to.have.status(204);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Eliminar la mesa",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base}}/api/mesas/{{persistenciaMesaId}}",
+                  "host": [
+                    "{{base}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mesas",
+                    "{{persistenciaMesaId}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 204\", function () {",
+                      "    pm.response.to.have.status(204);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
     }
   ],
   "variable": [
@@ -1952,6 +2652,42 @@
     },
     {
       "key": "pedidoPruebaId",
+      "value": ""
+    },
+    {
+      "key": "persistenciaCorreo",
+      "value": ""
+    },
+    {
+      "key": "persistenciaUsuarioId",
+      "value": ""
+    },
+    {
+      "key": "persistenciaPlatillo",
+      "value": ""
+    },
+    {
+      "key": "persistenciaPlatilloId",
+      "value": ""
+    },
+    {
+      "key": "persistenciaDocumento",
+      "value": ""
+    },
+    {
+      "key": "persistenciaClienteId",
+      "value": ""
+    },
+    {
+      "key": "persistenciaNumeroMesa",
+      "value": ""
+    },
+    {
+      "key": "persistenciaMesaId",
+      "value": ""
+    },
+    {
+      "key": "resenaId",
       "value": ""
     }
   ]

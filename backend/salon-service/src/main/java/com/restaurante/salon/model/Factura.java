@@ -1,27 +1,20 @@
 package com.restaurante.salon.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 
 /**
- * Factura de un pedido.
+ * Factura de un pedido. Es un documento de la colección "facturas".
  *
  * Aquí viven los impuestos: Pedido.calcularTotal() devuelve el consumo limpio
  * y esta clase le aplica el impuesto al consumo (8 %) y congela las tres cifras.
  */
-@Entity
-@Table(name = "facturas")
+@Document("facturas")
 public class Factura {
 
     /** Impuesto al consumo del 8 %. Constante con dos decimales. */
@@ -31,39 +24,32 @@ public class Factura {
     private static final int DECIMALES = 2;
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
+    /** Índice único: garantiza que no existan dos facturas con el mismo número. */
+    @Indexed(unique = true)
     private String numero;
 
     private LocalDateTime fecha;
 
-    @Column(precision = 12, scale = 2, nullable = false)
     private BigDecimal subtotal;
 
-    @Column(precision = 12, scale = 2, nullable = false)
     private BigDecimal impuestos;
 
-    @Column(precision = 12, scale = 2, nullable = false)
     private BigDecimal total;
 
-    @Column(nullable = false)
     private boolean anulada;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "pedido_id", nullable = false)
-    private Pedido pedido;
+    private Long pedidoId;
 
-    @Column(name = "cajero_id", nullable = false)
     private Long cajeroId; // Referencia a usuarios-service
 
     protected Factura() {
     }
 
-    public Factura(String numero, Pedido pedido, Long cajeroId) {
+    public Factura(String numero, Long pedidoId, Long cajeroId) {
         this.numero = numero;
-        this.pedido = pedido;
+        this.pedidoId = pedidoId;
         this.cajeroId = cajeroId;
         this.subtotal = BigDecimal.ZERO.setScale(DECIMALES);
         this.impuestos = BigDecimal.ZERO.setScale(DECIMALES);
@@ -76,6 +62,13 @@ public class Factura {
     }
 
     public void setId(Long id) {
+        this.id = id;
+    }
+
+    public void asignarId(Long id) {
+        if (this.id != null) {
+            throw new IllegalStateException("La factura ya tiene el id " + this.id + ".");
+        }
         this.id = id;
     }
 
@@ -107,12 +100,12 @@ public class Factura {
         return anulada;
     }
 
-    public Pedido getPedido() {
-        return pedido;
+    public Long getPedidoId() {
+        return pedidoId;
     }
 
-    public void setPedido(Pedido pedido) {
-        this.pedido = pedido;
+    public void setPedidoId(Long pedidoId) {
+        this.pedidoId = pedidoId;
     }
 
     public Long getCajeroId() {
@@ -124,13 +117,13 @@ public class Factura {
     }
 
     /**
-     * Congela las tres cifras y la fecha.
+     * Congela las tres cifras y la fecha a partir del pedido facturado.
      *
      * Subtotal llega en escala 2 desde Pedido.calcularTotal().
      * Los impuestos se multiplican y redondean a 2 decimales con HALF_UP.
      * Total es la suma exacta de subtotal + impuestos ya redondeados.
      */
-    public void emitir() {
+    public void emitir(Pedido pedido) {
         this.fecha = LocalDateTime.now();
         this.subtotal = pedido.calcularTotal();
         this.impuestos = subtotal.multiply(IMPUESTO_CONSUMO)

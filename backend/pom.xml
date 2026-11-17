@@ -41,6 +41,8 @@
 	<properties>
 		<java.version>21</java.version>
 		<spring-cloud.version>2025.1.3</spring-cloud.version>
+		<!-- springdoc 3.x es la linea para Spring Boot 4; la 3.2 se compila contra Boot 4.1. -->
+		<springdoc.version>3.2.0</springdoc.version>
 	</properties>
 
 	<dependencyManagement>
@@ -51,6 +53,13 @@
 				<version>${spring-cloud.version}</version>
 				<type>pom</type>
 				<scope>import</scope>
+			</dependency>
+			<!-- Swagger UI y la descripcion OpenAPI de cada servicio. Los servicios la
+			     declaran sin version: la fija esta linea para todos. -->
+			<dependency>
+				<groupId>org.springdoc</groupId>
+				<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+				<version>${springdoc.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>

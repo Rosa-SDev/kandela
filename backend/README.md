@@ -1,4 +1,4 @@
-# restaurante-microservicios
+# Kandela · backend
 
 Sistema de Gestión de Restaurante expuesto como microservicios REST con Spring Boot.
 El proyecto es un repositorio Maven multi-módulo: un `pom.xml` padre que coordina
@@ -22,7 +22,7 @@ cada ruta al servicio que le corresponde.
 |---|---|
 | `/api/usuarios/**`, `/api/auth/**` | `usuarios-service` |
 | `/api/platillos/**` | `carta-service` |
-| `/api/clientes/**`, `/api/reservas/**` | `clientes-service` |
+| `/api/clientes/**`, `/api/reservas/**`, `/api/resenas/**` | `clientes-service` |
 | `/api/mesas/**`, `/api/pedidos/**`, `/api/facturas/**` | `salon-service` |
 
 Cada servicio fija su puerto y su base de datos en su propio
@@ -32,6 +32,8 @@ Cada servicio fija su puerto y su base de datos en su propio
 
 - JDK 21
 - No hace falta instalar Maven: el repositorio trae el wrapper.
+- Docker Desktop abierto: los servicios usan el MongoDB de `docker-compose.yml` (en la
+  raíz del repositorio) y las pruebas levantan el suyo con Testcontainers.
 
 ## Compilar
 
@@ -65,10 +67,11 @@ carta-service/
 └── src/main/
     ├── java/com/restaurante/carta/
     │   ├── CartaApplication.java   punto de entrada
+    │   ├── contador/               ids numéricos (colección contadores)
     │   ├── controller/             traduce HTTP
     │   ├── service/                reglas de negocio
     │   ├── repository/             acceso a datos
-    │   ├── model/                  entidades JPA
+    │   ├── model/                  documentos de MongoDB
     │   └── dto/                    lo que viaja en el JSON
     └── resources/application.yml   puerto y base de datos
 ```

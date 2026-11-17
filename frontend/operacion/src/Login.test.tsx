@@ -120,7 +120,10 @@ describe('Login', () => {
   });
 
   it('unas credenciales incorrectas muestran el aviso del servidor', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(respuesta(401, { error: 'No autorizado' })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(respuesta(401, { error: 'Correo o contraseña incorrectos.' })),
+    );
     pintarLogin();
 
     escribirCredenciales('carlos.rojas@raizysazon.co', 'equivocada');

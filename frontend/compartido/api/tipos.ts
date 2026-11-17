@@ -97,6 +97,13 @@ export interface Login {
   password: string;
 }
 
+export interface RespuestaLogin {
+  token: string;
+  tipo: 'Bearer';
+  expiraEn: number; // segundos de vigencia del token
+  usuario: UsuarioDTO;
+}
+
 export interface CrearUsuario {
   nombre: string;
   correo: string;
@@ -169,4 +176,36 @@ export interface CrearFactura {
   cajeroId: number;
   metodoPago: MetodoPago;
   monto: number;
+}
+
+/**
+ * Decisión del agente SentiTriage-ES sobre una reseña. Son identificadores de
+ * su API: ABSTAIN (requiere una persona), QUEUE (queja), PASS (se almacena).
+ */
+export type AccionDelAgente = 'ABSTAIN' | 'QUEUE' | 'PASS';
+
+export interface ResenaDTO {
+  id: number;
+  texto: string;
+  fecha: string;
+  mesaId: number | null;
+  pedidoId: number | null;
+  accion: AccionDelAgente;
+  etiqueta: 'negative' | 'neutral' | 'positive' | null;
+  confianza: number | null;
+  umbral: number | null;
+  modelo: string | null;
+  /** El agente no respondió: la reseña quedó como ABSTAIN para que la lea una persona. */
+  sinClasificar: boolean;
+  revisada: boolean;
+}
+
+export interface CrearResena {
+  texto: string;
+  mesaId?: number;
+  pedidoId?: number;
+}
+
+export interface MarcarRevisada {
+  revisada: boolean;
 }

@@ -1,5 +1,6 @@
 package com.restaurante.carta.service;
 
+import com.restaurante.carta.contador.GeneradorDeIds;
 import com.restaurante.carta.exception.ConflictoException;
 import com.restaurante.carta.exception.NoEncontradoException;
 import com.restaurante.carta.model.Platillo;
@@ -24,18 +25,34 @@ import java.util.List;
 @Service
 public class PlatilloService {
 
-    private final PlatilloRepository repositorio;
+    /** Nombre del contador de GeneradorDeIds que numera los platillos. */
+    static final String COLECCION = "platillos";
 
-    /** Spring ve este constructor y pasa el repositorio automaticamente. */
-    public PlatilloService(PlatilloRepository repositorio) {
+    private final PlatilloRepository repositorio;
+    private final GeneradorDeIds generadorDeIds;
+
+    /** Spring ve este constructor y pasa sus dependencias automaticamente. */
+    public PlatilloService(PlatilloRepository repositorio, GeneradorDeIds generadorDeIds) {
         this.repositorio = repositorio;
+        this.generadorDeIds = generadorDeIds;
     }
 
+    /**
+     * Es el unico sitio que crea platillos, tambien para los datos de
+     * demostracion, y por eso el unico que asigna ids.
+     *
+     * El id se pide despues de comprobar el nombre, para no gastar un numero en
+     * un platillo que se va a rechazar.
+     *
+     * Se usa insert y no save: insert falla si el id ya existe, mientras que save
+     * reemplazaria en silencio el platillo que tuviera ese id.
+     */
     public Platillo crear(Platillo platillo) {
         if (repositorio.existsByNombreIgnoreCase(platillo.getNombre())) {
             throw new ConflictoException("Ya existe un platillo con el nombre " + platillo.getNombre() + ".");
         }
-        return repositorio.save(platillo);
+        platillo.asignarId(generadorDeIds.siguiente(COLECCION));
+        return repositorio.insert(platillo);
     }
 
     /**

@@ -3,6 +3,9 @@ package com.restaurante.clientes.service;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
@@ -32,15 +35,30 @@ public class ReservaService {
         this.salonClient = salonClient;
     }
 
+    /**
+     * La reserva solo guarda el id del cliente, pero la respuesta lleva también
+     * su nombre. En lugar de consultar el cliente de cada reserva (una consulta
+     * por fila), se juntan los ids distintos y se traen todos los clientes con
+     * un solo findAllById.
+     */
     public List<ReservaDTO> listar(EstadoReserva estado) {
         List<Reserva> reservas = (estado == null)
                 ? reservaRepository.findAll()
                 : reservaRepository.findByEstado(estado);
-        return reservas.stream().map(ReservaDTO::de).toList();
+
+        Set<Long> idsDeClientes = reservas.stream()
+                .map(Reserva::getClienteId)
+                .collect(Collectors.toSet());
+        Map<Long, String> nombres = clienteRepository.findAllById(idsDeClientes).stream()
+                .collect(Collectors.toMap(Cliente::getId, Cliente::getNombre));
+
+        return reservas.stream()
+                .map(reserva -> ReservaDTO.de(reserva, nombres.get(reserva.getClienteId())))
+                .toList();
     }
 
     public ReservaDTO buscarPorId(Long id) {
-        return ReservaDTO.de(buscarEntidad(id));
+        return aDTO(buscarEntidad(id));
     }
 
     public ReservaDTO crear(CrearReservaDTO datos) {
@@ -60,9 +78,23 @@ public class ReservaService {
             validarCapacidad(datos.mesaId(), datos.numPersonas());
         }
 
-        Reserva reserva = new Reserva(datos.fechaHora(), datos.numPersonas(), cliente,
+        Reserva reserva = new Reserva(datos.fechaHora(), datos.numPersonas(), cliente.getId(),
                 datos.mesaId(), datos.meseroId());
-        return ReservaDTO.de(reservaRepository.save(reserva));
+        return ReservaDTO.de(registrar(reserva), cliente.getNombre());
+    }
+
+    /**
+     * Es el único sitio que guarda reservas nuevas, y por eso el único que
+     * asigna ids. Lo usan crear, después de validar la petición, y los datos de
+     * demostración, que ya vienen correctos y no deben depender de que el salón
+     * esté encendido al arrancar.
+     *
+     * Se guarda con insert y no con save: insert falla si el id ya existe,
+     * mientras que save reemplazaría en silencio la reserva que tuviera ese id.
+     */
+    public Reserva registrar(Reserva reserva) {
+        reserva.asignarId(reservaRepository.siguienteId());
+        return reservaRepository.insert(reserva);
     }
 
     public ReservaDTO cambiarEstado(Long id, EstadoReserva nuevoEstado) {
@@ -89,7 +121,7 @@ public class ReservaService {
             reserva.setEstado(nuevoEstado);
         }
 
-        return ReservaDTO.de(reservaRepository.save(reserva));
+        return aDTO(reservaRepository.save(reserva));
     }
 
     public void eliminar(Long id) {
@@ -108,6 +140,14 @@ public class ReservaService {
             throw new ConflictoException("La mesa " + mesa.numero() + " no alcanza para " + numPersonas
                     + " personas. Su capacidad es de " + mesa.capacidad() + ".");
         }
+    }
+
+    /** Una sola reserva: su cliente se consulta por id para poner el nombre. */
+    private ReservaDTO aDTO(Reserva reserva) {
+        String nombre = clienteRepository.findById(reserva.getClienteId())
+                .map(Cliente::getNombre)
+                .orElse(null);
+        return ReservaDTO.de(reserva, nombre);
     }
 
     private Reserva buscarEntidad(Long id) {

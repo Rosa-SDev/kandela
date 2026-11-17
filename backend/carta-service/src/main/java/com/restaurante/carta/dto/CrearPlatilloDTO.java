@@ -11,7 +11,7 @@ import java.math.BigDecimal;
 /**
  * Lo que entra en el cuerpo de un POST o de un PUT.
  *
- * No tiene id a proposito: lo genera la base de datos, no el cliente.
+ * No tiene id a proposito: lo asigna el servicio al crear, no el cliente.
  *
  * Las anotaciones se ejecutan cuando el controlador marca el parametro con
  * @Valid. Si alguna falla, la peticion nunca llega al servicio y el manejador

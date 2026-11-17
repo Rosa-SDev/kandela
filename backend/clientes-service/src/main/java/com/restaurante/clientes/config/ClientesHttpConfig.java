@@ -38,4 +38,25 @@ public class ClientesHttpConfig {
                 .requestFactory(fabrica)
                 .build();
     }
+
+    /**
+     * Cliente de SentiTriage-ES, el agente que clasifica las reseñas.
+     *
+     * Conectar debe ser igual de rápido que con el salón, pero leer la
+     * respuesta puede tardar más: el agente carga su modelo de lenguaje con la
+     * primera petición, y esa primera respuesta tarda varios segundos. Por eso
+     * la espera de lectura sale de la configuración.
+     */
+    @Bean
+    public RestClient sentiTriageRestClient(@Value("${servicios.sentitriage.url}") String urlDelAgente,
+                                            @Value("${servicios.sentitriage.espera-maxima}") Duration esperaDeLectura) {
+        SimpleClientHttpRequestFactory fabrica = new SimpleClientHttpRequestFactory();
+        fabrica.setConnectTimeout(ESPERA_MAXIMA);
+        fabrica.setReadTimeout(esperaDeLectura);
+
+        return RestClient.builder()
+                .baseUrl(urlDelAgente)
+                .requestFactory(fabrica)
+                .build();
+    }
 }

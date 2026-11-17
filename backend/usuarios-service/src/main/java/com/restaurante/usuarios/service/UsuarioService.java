@@ -1,5 +1,6 @@
 package com.restaurante.usuarios.service;
 
+import com.restaurante.usuarios.contador.GeneradorDeIds;
 import com.restaurante.usuarios.dto.CrearUsuarioDTO;
 import com.restaurante.usuarios.dto.ActualizarUsuarioDTO;
 import com.restaurante.usuarios.dto.UsuarioDTO;
@@ -19,18 +20,33 @@ import java.util.List;
 @Service
 public class UsuarioService {
 
-    private final UsuarioRepository repositorio;
+    /** Nombre del contador de GeneradorDeIds que numera los usuarios. */
+    static final String COLECCION = "usuarios";
 
-    public UsuarioService(UsuarioRepository repositorio) {
+    private final UsuarioRepository repositorio;
+    private final GeneradorDeIds generadorDeIds;
+
+    public UsuarioService(UsuarioRepository repositorio, GeneradorDeIds generadorDeIds) {
         this.repositorio = repositorio;
+        this.generadorDeIds = generadorDeIds;
     }
 
+    /**
+     * Es el unico sitio que crea usuarios, tambien para los datos de
+     * demostracion, y por eso el unico que asigna ids.
+     *
+     * El id se pide despues de comprobar el correo, para no gastar un numero en
+     * un usuario que se va a rechazar. Se guarda con insert y no con save:
+     * insert falla si el id ya existe, mientras que save reemplazaria en
+     * silencio al usuario que tuviera ese id.
+     */
     public UsuarioDTO crear(CrearUsuarioDTO dto) {
         if (repositorio.existsByCorreoIgnoreCase(dto.correo())) {
             throw new ConflictoException("Ya existe un usuario con ese correo.");
         }
         Usuario usuario = construirPorRol(dto.rol(), dto.nombre(), dto.correo(), hash(dto.password()));
-        return UsuarioDTO.de(repositorio.save(usuario));
+        usuario.asignarId(generadorDeIds.siguiente(COLECCION));
+        return UsuarioDTO.de(repositorio.insert(usuario));
     }
 
     public List<UsuarioDTO> listar(Rol rol) {
@@ -47,8 +63,11 @@ public class UsuarioService {
         /**
      * Actualiza nombre y correo. La contraseña es opcional: si no viene (o viene
      * vacía) se conserva el hash actual; si viene, se guarda su nuevo hash. El
-     * rol no se puede cambiar por esta vía: en SINGLE_TABLE cambiar de subclase
-     * implicaría borrar y recrear la fila, y el contrato no pide esa operación.
+     * rol no se puede cambiar por esta vía: el rol es la subclase guardada en
+     * _class, y el contrato no pide esa operación.
+     *
+     * MongoDB no guarda solo lo que se modifica: el cambio queda en la base
+     * porque termina en save(), que reemplaza el documento completo.
      */
     public UsuarioDTO actualizar(Long id, ActualizarUsuarioDTO dto) {
         Usuario usuario = buscarEntidad(id);

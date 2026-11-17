@@ -1,10 +1,9 @@
 package com.restaurante.usuarios.model;
 
-import jakarta.persistence.DiscriminatorValue;
-import jakarta.persistence.Entity;
+import org.springframework.data.annotation.TypeAlias;
 
-@Entity
-@DiscriminatorValue("MESERO")
+/** En MongoDB su documento lleva _class: "MESERO". */
+@TypeAlias("MESERO")
 public class Mesero extends Usuario {
 
     protected Mesero() { }

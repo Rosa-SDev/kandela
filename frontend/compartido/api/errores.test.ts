@@ -42,10 +42,37 @@ describe('traducirError', () => {
     expect(resultado.campos).toEqual({});
   });
 
-  it('401 usa siempre el texto fijo', () => {
-    const cuerpo = { error: 'Credenciales inválidas' };
+  it('401 con mensaje de Kandela', () => {
+    const cuerpo = { error: 'Debe iniciar sesión con un token válido.' };
     const resultado = traducirError(401, cuerpo);
-    expect(resultado.titulo).toBe('Correo o contraseña incorrectos.');
+    expect(resultado.titulo).toBe(cuerpo.error);
+  });
+
+  it('401 sin cuerpo', () => {
+    const resultado = traducirError(401, null);
+    expect(resultado.titulo).toBe('Su sesión terminó. Inicie sesión de nuevo.');
+  });
+
+  it('403 con mensaje de Kandela', () => {
+    const cuerpo = { error: 'No tiene permisos para realizar esta operación.' };
+    const resultado = traducirError(403, cuerpo);
+    expect(resultado.titulo).toBe(cuerpo.error);
+  });
+
+  it('403 sin cuerpo', () => {
+    const resultado = traducirError(403, null);
+    expect(resultado.titulo).toBe('No tiene permisos para realizar esta operación.');
+  });
+
+  it('403 con el cuerpo por defecto de Spring', () => {
+    const cuerpo = {
+      timestamp: '2026-11-10T10:00:00.000+00:00',
+      status: 403,
+      error: 'Forbidden',
+      path: '/api/facturas/1/anular',
+    };
+    const resultado = traducirError(403, cuerpo);
+    expect(resultado.titulo).toBe('No tiene permisos para realizar esta operación.');
   });
 
   it('404 con mensaje de Kandela', () => {

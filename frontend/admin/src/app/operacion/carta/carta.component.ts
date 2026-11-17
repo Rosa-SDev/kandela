@@ -14,6 +14,27 @@ import { AvisoComponent } from '../../componentes/aviso.component';
 import { PlatilloDTO, CrearPlatillo } from '@compartido/api/tipos';
 import { ErrorKandela } from '@compartido/api/errores';
 
+/**
+ * Lo que está mal en el porcentaje del descuento, o null si sirve.
+ *
+ * El campo llega como texto aunque sea de tipo number, y vacío cuando no hay
+ * nada escrito; por eso se convierte aquí y no se confía en el tipo.
+ */
+function problemaDelPorcentaje(valor: unknown): string | null {
+  const texto = String(valor ?? '').trim();
+  if (!texto) {
+    return 'El porcentaje es obligatorio.';
+  }
+  const numero = Number(texto);
+  if (isNaN(numero) || numero <= 0) {
+    return 'El porcentaje debe ser mayor que cero.';
+  }
+  if (numero > 100) {
+    return 'El porcentaje no puede ser mayor que 100.';
+  }
+  return null;
+}
+
 @Component({
   selector: 'app-carta',
   standalone: true,
@@ -52,20 +73,20 @@ export class CartaComponent implements OnInit {
   errorSrv = signal<{ titulo: string; texto: string } | null>(null);
   avisoOk = signal<{ titulo: string; texto: string } | null>(null);
 
-  categoriasDisponibles = ['Entradas', 'Platos fuertes', 'Bebidas', 'Postres'];
+  categoriasDisponibles = ['Entradas', 'Sopas', 'Fuertes', 'Postres', 'Bebidas'];
 
-  // Pestañas / Filtros calculados dinámicamente con cantidad
+  // Pestañas / Filtros calculados dinámicamente a partir de las categorías de los platillos cargados
   filtrosCategorias = computed<FiltroItem[]>(() => {
     const list = this.platillos();
-    const items: FiltroItem[] = [
-      { id: 'todas', texto: 'Todas', cantidad: list.length }
+    const categorias = [...new Set(list.map(p => p.categoria))];
+    return [
+      { id: 'todas', texto: 'Todas', cantidad: list.length },
+      ...categorias.map(cat => ({
+        id: cat,
+        texto: cat,
+        cantidad: list.filter(p => p.categoria === cat).length
+      }))
     ];
-
-    for (const cat of this.categoriasDisponibles) {
-      const cantidad = list.filter(p => p.categoria.toLowerCase() === cat.toLowerCase()).length;
-      items.push({ id: cat, texto: cat, cantidad });
-    }
-    return items;
   });
 
   // Platillos según la categoría activa
@@ -73,12 +94,15 @@ export class CartaComponent implements OnInit {
     const cat = this.categoriaActiva();
     const list = this.platillos();
     if (cat === 'todas') return list;
-    return list.filter(p => p.categoria.toLowerCase() === cat.toLowerCase());
+    return list.filter(p => p.categoria === cat);
   });
 
   // Drawer (Crear / Editar)
   drawerAbierto = signal(false);
   editandoId = signal<number | null>(null);
+  guardando = signal(false);
+  resumen = signal<{ titulo: string; texto: string } | null>(null);
+  errorNombreSrv = signal<string | null>(null);
 
   formulario = this.fb.nonNullable.group({
     nombre: ['', Validators.required],
@@ -88,11 +112,23 @@ export class CartaComponent implements OnInit {
     disponible: ['Disponible', Validators.required]
   });
 
+  private readonly mensajes: Record<string, Record<string, string>> = {
+    nombre: {
+      required: 'El nombre del platillo es obligatorio.'
+    },
+    precio: {
+      required: 'El precio es obligatorio.',
+      min: 'El precio debe ser mayor que cero.'
+    }
+  };
+
   // Diálogo de Descuento
   dialogoDescuento = signal(false);
   platilloDescuento = signal<PlatilloDTO | null>(null);
   porcentajeDescuento = signal<number | null>(null);
   errorDescuento = signal<string | null>(null);
+  descuentoIntentado = signal(false);
+  aplicandoDescuento = signal(false);
 
   descuentoCalculado = computed(() => {
     const p = this.platilloDescuento();
@@ -111,9 +147,17 @@ export class CartaComponent implements OnInit {
     return `Precio actual: $${p.precio.toLocaleString('es-CO')}.`;
   });
 
-  descuentoValido = computed(() => {
-    const pct = this.porcentajeDescuento();
-    return pct !== null && !isNaN(pct) && pct > 0 && pct <= 100;
+  descuentoValido = computed(() => problemaDelPorcentaje(this.porcentajeDescuento()) === null);
+
+  /** Lo que dijo el servidor, o el problema del porcentaje después de pulsar «Aplicar». */
+  errorDelPorcentaje = computed(() => {
+    if (this.errorDescuento()) {
+      return this.errorDescuento();
+    }
+    if (!this.descuentoIntentado()) {
+      return null;
+    }
+    return problemaDelPorcentaje(this.porcentajeDescuento());
   });
 
   // Diálogo de Eliminar
@@ -161,18 +205,24 @@ export class CartaComponent implements OnInit {
       precio: 0,
       disponible: 'Disponible'
     });
+    this.resumen.set(null);
+    this.errorNombreSrv.set(null);
     this.drawerAbierto.set(true);
   }
 
+  // reset y no patchValue: así un intento fallido anterior no deja los
+  // campos marcados con error al abrir otro platillo.
   abrirEditar(platillo: PlatilloDTO) {
     this.editandoId.set(platillo.id);
-    this.formulario.patchValue({
+    this.formulario.reset({
       nombre: platillo.nombre,
       descripcion: platillo.descripcion || '',
       categoria: platillo.categoria,
       precio: platillo.precio,
       disponible: platillo.disponible ? 'Disponible' : 'Agotado'
     });
+    this.resumen.set(null);
+    this.errorNombreSrv.set(null);
     this.drawerAbierto.set(true);
   }
 
@@ -181,8 +231,37 @@ export class CartaComponent implements OnInit {
     this.editandoId.set(null);
   }
 
+  /** El mensaje de un campo, solo después de que se intentó guardar o se salió de él. */
+  errorDe(campo: 'nombre' | 'precio'): string | null {
+    if (campo === 'nombre' && this.errorNombreSrv()) {
+      return this.errorNombreSrv();
+    }
+    const control = this.formulario.controls[campo];
+    if (!control.touched || !control.invalid) {
+      return null;
+    }
+    const clave = Object.keys(control.errors ?? {})[0];
+    return this.mensajes[campo][clave] ?? null;
+  }
+
   guardar() {
-    if (this.formulario.invalid) return;
+    if (this.guardando()) {
+      return;
+    }
+
+    if (this.formulario.invalid) {
+      this.formulario.markAllAsTouched();
+      const n = Object.values(this.formulario.controls).filter((c) => c.invalid).length;
+      this.resumen.set({
+        titulo: `Revise ${n} campo${n === 1 ? '' : 's'}`,
+        texto: 'No se guardó nada todavía.'
+      });
+      return;
+    }
+
+    this.guardando.set(true);
+    this.resumen.set(null);
+    this.errorNombreSrv.set(null);
 
     const val = this.formulario.getRawValue();
     const datos: CrearPlatillo = {
@@ -197,6 +276,7 @@ export class CartaComponent implements OnInit {
     if (id) {
       this.cartaSrv.actualizar(id, datos).subscribe({
         next: (res) => {
+          this.guardando.set(false);
           this.cerrarDrawer();
           this.avisoOk.set({
             titulo: 'Cambios guardados',
@@ -204,16 +284,12 @@ export class CartaComponent implements OnInit {
           });
           this.cargarPlatillos();
         },
-        error: (err: ErrorKandela) => {
-          this.errorSrv.set({
-            titulo: err.titulo || 'No se pudo actualizar el platillo.',
-            texto: err.texto || ''
-          });
-        }
+        error: (err: ErrorKandela) => this.fallo(err, 'No se pudo actualizar el platillo.')
       });
     } else {
       this.cartaSrv.crear(datos).subscribe({
         next: (res) => {
+          this.guardando.set(false);
           this.cerrarDrawer();
           this.avisoOk.set({
             titulo: 'Platillo guardado',
@@ -221,13 +297,24 @@ export class CartaComponent implements OnInit {
           });
           this.cargarPlatillos();
         },
-        error: (err: ErrorKandela) => {
-          this.errorSrv.set({
-            titulo: err.titulo || 'No se pudo crear el platillo.',
-            texto: err.texto || ''
-          });
-        }
+        error: (err: ErrorKandela) => this.fallo(err, 'No se pudo crear el platillo.')
       });
+    }
+  }
+
+  /**
+   * Un error del servidor al guardar se muestra dentro del drawer, que es donde
+   * está quien lo tiene que corregir; el aviso de la página queda para los éxitos.
+   */
+  private fallo(err: ErrorKandela, porDefecto: string) {
+    this.guardando.set(false);
+    // El único conflicto al crear o renombrar es que el nombre ya esté tomado,
+    // así que además del aviso se marca el campo que hay que cambiar.
+    if (err.status === 409) {
+      this.errorNombreSrv.set('Revise este campo.');
+      this.resumen.set({ titulo: err.titulo || porDefecto, texto: 'Elija otro nombre.' });
+    } else {
+      this.resumen.set({ titulo: err.titulo || porDefecto, texto: 'No se guardó nada todavía.' });
     }
   }
 
@@ -236,6 +323,7 @@ export class CartaComponent implements OnInit {
     this.platilloDescuento.set(platillo);
     this.porcentajeDescuento.set(null);
     this.errorDescuento.set(null);
+    this.descuentoIntentado.set(false);
     this.dialogoDescuento.set(true);
   }
 
@@ -244,15 +332,24 @@ export class CartaComponent implements OnInit {
     this.platilloDescuento.set(null);
     this.porcentajeDescuento.set(null);
     this.errorDescuento.set(null);
+    this.descuentoIntentado.set(false);
   }
 
   confirmarDescuento() {
     const p = this.platilloDescuento();
     const pct = this.porcentajeDescuento();
-    if (!p || !this.descuentoValido() || pct === null) return;
+    if (!p || this.aplicandoDescuento()) return;
 
+    this.errorDescuento.set(null);
+    if (!this.descuentoValido()) {
+      this.descuentoIntentado.set(true);
+      return;
+    }
+
+    this.aplicandoDescuento.set(true);
     this.cartaSrv.aplicarDescuento(p.id, Number(pct)).subscribe({
       next: (actualizado) => {
+        this.aplicandoDescuento.set(false);
         this.cerrarDescuento();
         this.avisoOk.set({
           titulo: 'Descuento aplicado',
@@ -261,6 +358,7 @@ export class CartaComponent implements OnInit {
         this.cargarPlatillos();
       },
       error: (err: ErrorKandela) => {
+        this.aplicandoDescuento.set(false);
         this.errorDescuento.set(err.titulo || 'No se pudo aplicar el descuento.');
       }
     });

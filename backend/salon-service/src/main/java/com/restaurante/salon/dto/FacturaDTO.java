@@ -22,7 +22,6 @@ public record FacturaDTO(Long id,
         if (factura == null) {
             return null;
         }
-        Long pedidoId = factura.getPedido() != null ? factura.getPedido().getId() : null;
         return new FacturaDTO(factura.getId(),
                               factura.getNumero(),
                               factura.getFecha(),
@@ -30,7 +29,7 @@ public record FacturaDTO(Long id,
                               factura.getImpuestos(),
                               factura.getTotal(),
                               factura.isAnulada(),
-                              pedidoId,
+                              factura.getPedidoId(),
                               factura.getCajeroId());
     }
 }

@@ -1,57 +1,61 @@
 package com.restaurante.carta.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
 /**
- * Un plato de la carta. Es la tabla "platillos" de la base de datos.
+ * Un plato de la carta. Es un documento de la coleccion "platillos".
  *
  * La categoria es un String, no una clase: el diagrama corregido elimino
  * CategoriaPlatillo. El precio es BigDecimal, nunca double, porque los double
- * acumulan error de redondeo en operaciones de dinero.
+ * acumulan error de redondeo en operaciones de dinero. En MongoDB se guarda
+ * como NumberDecimal.
  *
  * Esta clase no valida nada: solo representa el dato. Las reglas de negocio
  * viven en PlatilloService y las validaciones de formato en los DTO.
  */
-@Entity
-@Table(name = "platillos")
+@Document("platillos")
 public class Platillo implements IDescontable {
 
     /** Todos los importes se guardan con dos decimales. */
     private static final int DECIMALES = 2;
     private static final BigDecimal CIEN = new BigDecimal("100");
 
+    /** Se guarda como _id. Es un Long que reparte GeneradorDeIds, no un ObjectId. */
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    /**
+     * Indice unico: MongoDB rechaza un segundo platillo con el mismo nombre,
+     * aunque dos peticiones lleguen a la vez.
+     *
+     * La collation con strength 2 compara sin distinguir mayusculas pero
+     * respetando tildes, igual que equalsIgnoreCase: "Bandeja paisa" y
+     * "BANDEJA PAISA" chocan; "Ajiaco" y "Ajiacó" no.
+     */
+    @Indexed(unique = true, collation = "{ 'locale': 'es', 'strength': 2 }")
     private String nombre;
 
     private String descripcion;
 
     private String categoria;
 
-    @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal precio;
 
     private boolean disponible;
 
     /**
-     * Constructor vacio que exige JPA: construye el objeto sin datos y despues
-     * rellena los campos. No lo borres.
+     * Constructor vacio que usa Spring Data: construye el objeto sin datos y
+     * despues rellena los campos con los del documento. No lo borres.
      */
     protected Platillo() {
     }
 
-    /** El id no se recibe: lo genera la base de datos al guardar. */
+    /** El id no se recibe: lo asigna PlatilloService al crear el platillo. */
     public Platillo(String nombre, String descripcion, String categoria,
                     BigDecimal precio, boolean disponible) {
         this.nombre = nombre;
@@ -63,6 +67,17 @@ public class Platillo implements IDescontable {
 
     public Long getId() {
         return id;
+    }
+
+    /**
+     * Fija el id una sola vez, al crear el platillo. Un platillo que ya tiene id
+     * no puede recibir otro: cambiarlo equivaldria a otro platillo.
+     */
+    public void asignarId(Long id) {
+        if (this.id != null) {
+            throw new IllegalStateException("El platillo ya tiene el id " + this.id + ".");
+        }
+        this.id = id;
     }
 
     public String getNombre() {

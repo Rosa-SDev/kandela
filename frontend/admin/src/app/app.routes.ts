@@ -7,6 +7,7 @@ import { ClientesComponent } from './paginas/clientes/clientes.component';
 import { MesasComponent } from './paginas/mesas/mesas.component';
 import { PedidosComponent } from './paginas/pedidos/pedidos.component';
 import { ReservasComponent } from './paginas/reservas/reservas.component';
+import { ResenasComponent } from './paginas/resenas/resenas.component';
 
 // Componentes falsos para que no falle la compilación mientras los demás hacen sus pantallas
 import { Component } from '@angular/core';
@@ -30,6 +31,7 @@ export const routes: Routes = [
       { path: 'carta', loadComponent: () => import('./operacion/carta/carta.component').then(m => m.CartaComponent) },
       { path: 'operacion/carta', redirectTo: 'carta', pathMatch: 'full' },
       { path: 'clientes', component: ClientesComponent },
+      { path: 'resenas', component: ResenasComponent },
       { path: 'facturas', loadComponent: () => import('./operacion/facturas/facturas.component').then(m => m.FacturasComponent) },
       { path: 'usuarios', component: UsuariosComponent },
       

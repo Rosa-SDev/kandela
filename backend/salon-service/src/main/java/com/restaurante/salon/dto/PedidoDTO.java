@@ -27,16 +27,13 @@ public record PedidoDTO(Long id,
                         List<LineaPedidoDTO> platillos,
                         BigDecimal total) {
 
-    public static PedidoDTO de(Pedido pedido) {
+    public static PedidoDTO de(Pedido pedido, Integer mesaNumero) {
         if (pedido == null) {
             return null;
         }
         List<LineaPedidoDTO> lineas = pedido.getPlatillos() != null
                 ? pedido.getPlatillos().stream().map(LineaPedidoDTO::de).toList()
                 : List.of();
-
-        Long mesaId = pedido.getMesa() != null ? pedido.getMesa().getId() : null;
-        Integer mesaNumero = pedido.getMesa() != null ? pedido.getMesa().getNumero() : null;
 
         return new PedidoDTO(pedido.getId(),
                              pedido.getFechaHora(),
@@ -45,7 +42,7 @@ public record PedidoDTO(Long id,
                              pedido.getMetodoPago(),
                              pedido.getMontoPagado(),
                              pedido.getFechaPago(),
-                             mesaId,
+                             pedido.getMesaId(),
                              mesaNumero,
                              pedido.getMeseroId(),
                              pedido.getCocineroId(),

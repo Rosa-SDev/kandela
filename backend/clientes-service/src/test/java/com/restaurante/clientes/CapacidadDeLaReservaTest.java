@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -37,12 +38,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * mesa que existe, la que no existe y el salón sin responder. Que la llamada
  * HTTP de verdad traduzca bien cada caso se comprueba aparte.
  *
- * La clase trabaja sobre su propia base de datos en memoria y crea el cliente
- * que necesita, para no depender de los datos de demostración ni compartir
- * reservas con las demás pruebas. El documento lleva un contador porque la
- * base vive durante toda la clase y el documento es único.
+ * La clase trabaja sobre un MongoDB de prueba (Testcontainers) y crea el
+ * cliente que necesita, para no depender de los datos de demostración. El
+ * documento lleva un contador porque la base vive durante toda la clase y el
+ * documento es único.
  */
-@SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:clientesreservasdb;DB_CLOSE_DELAY=-1")
+@SpringBootTest
+@Import(MongoDePrueba.class)
 class CapacidadDeLaReservaTest {
 
     private static final Long ID_MESA_DE_CUATRO = 2L;
